@@ -5,7 +5,15 @@ import Foundation
 
 /// Static identity of the app, shared by UI, notifications and tooling.
 enum AppInfo {
+    #if NEPTATER
+    /// Neptater is Jater's unofficial fork. Only the name changes; the links and
+    /// copyright below keep crediting the original project.
+    static let name = "Neptater"
+    static let isNeptater = true
+    #else
     static let name = "Vorssaint"
+    static let isNeptater = false
+    #endif
     static let copyright = "© 2026 Vorssaint"
     static let websiteURL = URL(string: "https://vorssaint.com")!
     static let repositoryURL = URL(string: "https://github.com/vorssaint/vorssaint-utils")!

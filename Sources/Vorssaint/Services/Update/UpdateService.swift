@@ -62,6 +62,8 @@ final class UpdateService: ObservableObject {
     /// Called at launch: checks shortly after start and then daily, if enabled.
     func startAutomaticChecks() {
         consumeInstallResult()
+        // The official feed would install Vorssaint over Neptater.
+        if AppInfo.isNeptater { return }
         if AppInfo.isBeta && UserDefaults.standard.object(forKey: DefaultsKey.includeBetaUpdates) == nil {
             UserDefaults.standard.set(true, forKey: DefaultsKey.includeBetaUpdates)
         }
@@ -100,6 +102,10 @@ final class UpdateService: ObservableObject {
     // MARK: - Check
 
     func check(manual: Bool) {
+        if AppInfo.isNeptater {
+            if manual { state = .failed("Neptater does not install official Vorssaint releases") }
+            return
+        }
         if AppInfo.isDeveloperBuild {
             // No real update target; reflect the simulation default so the
             // notification UI can be exercised locally.

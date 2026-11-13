@@ -117,11 +117,13 @@ func renderAppIcon(px: Int) -> Data? {
 // The mark is ~1.97:1, so fitting it into a fixed box made the width the
 // limiting side and left the height unused, rendering it far shorter than the
 // menu bar icons around it. Size from the height and let the width follow.
-let menuBarGlyphHeight: CGFloat = 12.5
+// Neptater: the banded globe is round, so it takes more of the 20 pt canvas
+// than the wide ringed planet did, and has no ring tails to drop for.
+let menuBarGlyphHeight: CGFloat = 15
 // Centered geometrically the mark reads high, since the thin ring tails carry
 // the bounding box below the planet body. Drop it onto the same visual floor
 // as its neighbours.
-let menuBarGlyphDrop: CGFloat = 1
+let menuBarGlyphDrop: CGFloat = 0
 // Taller than the mark needs: the same canvas holds the compact Keep Awake
 // symbols. Keep in sync with BlackHoleGlyph.pointSize in
 // Sources/Vorssaint/App/StatusItemController.swift; `--selftest` enforces it.
@@ -194,7 +196,9 @@ for scale in [1, 2] {
 
 // Trimmed mark for in-app use (panel header, onboarding, About).
 let markWidth = 640
-let markHeight = Int(CGFloat(markWidth) * sourceRect.height / sourceRect.width)
+// In-app views size the mark by width, laid out for the ringed planet's ~1.97:1.
+// Keep that canvas so the round globe centers in it instead of growing taller.
+let markHeight = Int(CGFloat(markWidth) / max(sourceRect.width / sourceRect.height, 1.97))
 if let rep = bitmapCanvas(markWidth, markHeight), let ctx = NSGraphicsContext(bitmapImageRep: rep) {
     rep.size = NSSize(width: markWidth, height: markHeight)
     NSGraphicsContext.saveGraphicsState()

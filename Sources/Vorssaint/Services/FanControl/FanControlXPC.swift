@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Vorssaint
 
 import Foundation
-#if VORSSAINT_DEVELOPMENT
+#if VORSSAINT_DEVELOPMENT || NEPTATER
 import Security
 import CryptoKit
 #endif
@@ -12,6 +12,10 @@ enum FanControlIdentifiers {
 
     #if VORSSAINT_DEVELOPMENT
     static let appBundleID = "com.vorssaint.utils.dev"
+    #elseif NEPTATER
+    // Neptater is signed locally, so it is pinned to its certificate like the
+    // Developer build rather than to the official team.
+    static let appBundleID = "io.github.kuochiuhsiang.neptater"
     #else
     static let appBundleID = "com.vorssaint.utils"
     #endif
@@ -20,7 +24,7 @@ enum FanControlIdentifiers {
     static let plistName = "\(helperID).plist"
 
     static var appCodeRequirement: String {
-        #if VORSSAINT_DEVELOPMENT
+        #if VORSSAINT_DEVELOPMENT || NEPTATER
         guard let hash = self.currentLeafCertificateSHA1() else {
             return "identifier \"\(appBundleID)\" and certificate leaf = H\"0000000000000000000000000000000000000000\""
         }
@@ -31,7 +35,7 @@ enum FanControlIdentifiers {
     }
 
     static var helperCodeRequirement: String {
-        #if VORSSAINT_DEVELOPMENT
+        #if VORSSAINT_DEVELOPMENT || NEPTATER
         guard let hash = self.currentLeafCertificateSHA1() else {
             return "identifier \"\(helperID)\" and certificate leaf = H\"0000000000000000000000000000000000000000\""
         }
@@ -41,7 +45,7 @@ enum FanControlIdentifiers {
         #endif
     }
 
-    #if VORSSAINT_DEVELOPMENT
+    #if VORSSAINT_DEVELOPMENT || NEPTATER
     private static func currentLeafCertificateSHA1() -> String? {
         var dynamicCode: SecCode?
         guard SecCodeCopySelf([], &dynamicCode) == errSecSuccess,

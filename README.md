@@ -1,3 +1,9 @@
+> [!NOTE]
+> **Neptater** 是 Jater 個人客製化的 Vorssaint 非官方 fork，不是 Vorssaint 官方版本，也沒有經過原作者背書。官方版本請到 [vorssaint/vorssaint-utils](https://github.com/vorssaint/vorssaint-utils)。
+> *Neptater is Jater's unofficial personal fork of Vorssaint, not an official Vorssaint release.*
+>
+> **名字由來**：原作的圖示是一顆帶光環的行星，而我從小就喜歡海王星，所以用海王星（Neptune）加上自己的名字 Jater，組成 Neptater，代表這是我的客製化版本。App 圖示是海王星加上它的符號 ♆（三叉戟）；選單列圖示則把海王星的雲帶做成剪影，向原作把光環做成剪影的手法致敬。
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/logo-dark.svg">

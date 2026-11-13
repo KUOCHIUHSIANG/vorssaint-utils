@@ -1923,6 +1923,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
 
     func openFeedbackWindow(kind: FeedbackKind = .bug) {
         closePopover()
+        // The in-app form would reach the official maintainer labelled as a
+        // stable Vorssaint build. Neptater opens the public issue forms instead,
+        // where a report can say it comes from the fork.
+        if AppInfo.isNeptater {
+            NSWorkspace.shared.open(URL(string: "https://github.com/vorssaint/vorssaint-utils/issues/new/choose")!)
+            return
+        }
         let host = NSHostingController(rootView: FeedbackView(initialKind: kind) { [weak self] in
             self?.feedbackWindow?.close()
         })

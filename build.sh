@@ -50,10 +50,13 @@ if (( DEV )); then
     APP_OPTIMIZATION_FLAGS=(-Onone)
     BUILD_CONFIGURATION="debug"
 else
-    APP_NAME="Vorssaint"
-    EXECUTABLE="Vorssaint"
-    APP_BUNDLE_ID="com.vorssaint.utils"
-    BUILD_VARIANT_FLAGS=()
+    # Neptater: Jater's unofficial fork. TRADEMARKS.md asks forks for their own
+    # name, icon, bundle id, signing and update feed, so the release variant
+    # carries this identity instead of the official one.
+    APP_NAME="Neptater"
+    EXECUTABLE="Neptater"
+    APP_BUNDLE_ID="io.github.kuochiuhsiang.neptater"
+    BUILD_VARIANT_FLAGS=(-D NEPTATER)
     APP_OPTIMIZATION_FLAGS=(-O)
     BUILD_CONFIGURATION="release"
 fi
@@ -673,7 +676,11 @@ xattr -c -r build/AppIcon.iconset build/AppIcon.icns build/MenuBarIcon.png build
 ACTOOL_BIN="$(xcrun --find actool 2>/dev/null || true)"
 ICON_TMP="$(mktemp -d)"
 ADAPTIVE_SKIP=""
-if [[ -z "$ACTOOL_BIN" ]]; then
+if (( ! DEV )); then
+    # Resources/Brand/AppIcon.icon is the official artwork; Neptater keeps the
+    # classic icon rendered from its own Brand PNGs.
+    ADAPTIVE_SKIP="Neptater uses its classic icon only"
+elif [[ -z "$ACTOOL_BIN" ]]; then
     ADAPTIVE_SKIP="actool not found (adaptive icons need Xcode 26+)"
 else
     echo "▸ Compiling adaptive icon catalog…"
@@ -717,18 +724,28 @@ cp CHANGELOG.md "$STAGE/Contents/Resources/CHANGELOG.md"
 for lproj in Resources/*.lproj(N); do
     cp -R "$lproj" "$STAGE/Contents/Resources/"
 done
+# A distinct identity so each variant installs and runs next to the official
+# app, with its own permissions, preferences and login item.
+/usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $APP_BUNDLE_ID" "$STAGE/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleName $APP_NAME" "$STAGE/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName $APP_NAME" "$STAGE/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleExecutable $EXECUTABLE" "$STAGE/Contents/Info.plist"
+FAN_PLIST="$STAGE/Contents/Library/LaunchDaemons/$FAN_HELPER_ID.plist"
+/usr/libexec/PlistBuddy -c "Set :Label $FAN_HELPER_ID" "$FAN_PLIST"
+/usr/libexec/PlistBuddy -c "Set :BundleProgram Contents/Library/LaunchServices/$FAN_HELPER_ID" "$FAN_PLIST"
+/usr/libexec/PlistBuddy -c "Delete :MachServices:com.vorssaint.utils.fan-control" "$FAN_PLIST"
+/usr/libexec/PlistBuddy -c "Add :MachServices:$FAN_HELPER_ID bool true" "$FAN_PLIST"
+if (( ! DEV )); then
+    # Permission prompts name the app in every language; rename them at staging
+    # so the localized sources stay identical to upstream.
+    for key in $(/usr/libexec/PlistBuddy -c Print "$STAGE/Contents/Info.plist" \
+            | awk '$1 ~ /UsageDescription$/ {print $1}'); do
+        value="$(/usr/libexec/PlistBuddy -c "Print :$key" "$STAGE/Contents/Info.plist")"
+        plutil -replace "$key" -string "${value//Vorssaint/$APP_NAME}" "$STAGE/Contents/Info.plist"
+    done
+    sed -i '' "s/Vorssaint/$APP_NAME/g" "$STAGE"/Contents/Resources/*.lproj/InfoPlist.strings
+fi
 if (( DEV )); then
-    # A distinct identity so the Developer build installs and runs next to the
-    # official app, with its own permissions, preferences and login item.
-    /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $APP_BUNDLE_ID" "$STAGE/Contents/Info.plist"
-    /usr/libexec/PlistBuddy -c "Set :CFBundleName $APP_NAME" "$STAGE/Contents/Info.plist"
-    /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName $APP_NAME" "$STAGE/Contents/Info.plist"
-    /usr/libexec/PlistBuddy -c "Set :CFBundleExecutable $EXECUTABLE" "$STAGE/Contents/Info.plist"
-    FAN_PLIST="$STAGE/Contents/Library/LaunchDaemons/$FAN_HELPER_ID.plist"
-    /usr/libexec/PlistBuddy -c "Set :Label $FAN_HELPER_ID" "$FAN_PLIST"
-    /usr/libexec/PlistBuddy -c "Set :BundleProgram Contents/Library/LaunchServices/$FAN_HELPER_ID" "$FAN_PLIST"
-    /usr/libexec/PlistBuddy -c "Delete :MachServices:com.vorssaint.utils.fan-control" "$FAN_PLIST"
-    /usr/libexec/PlistBuddy -c "Add :MachServices:$FAN_HELPER_ID bool true" "$FAN_PLIST"
     # Stamp the source commit + build time so the running dev app shows (in About)
     # exactly which code it was compiled from. Lets you verify it matches HEAD before
     # testing, instead of unknowingly running a stale build. Dev-only; never shipped.
