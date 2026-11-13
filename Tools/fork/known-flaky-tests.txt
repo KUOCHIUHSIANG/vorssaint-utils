@@ -1,0 +1,7 @@
+# Upstream test checks that fail intermittently on this Mac with no fork change
+# involved. Tools/fork/sync_upstream.py lets an update through when these are
+# the only failures (and says so in its summary), instead of asking Claude Code
+# to "fix" upstream's timing. One message substring per line.
+
+# Tests/NotchCompactTests.swift: failed 2 of 3 runs on official v3.4.4.
+jumping to distant selections does not realize the intervening history

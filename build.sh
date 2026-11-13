@@ -744,6 +744,15 @@ if (( ! DEV )); then
         plutil -replace "$key" -string "${value//Vorssaint/$APP_NAME}" "$STAGE/Contents/Info.plist"
     done
     sed -i '' "s/Vorssaint/$APP_NAME/g" "$STAGE"/Contents/Resources/*.lproj/InfoPlist.strings
+    # Neptater updates by rebuilding from this checkout (Tools/fork/sync_upstream.py):
+    # it needs the checkout's path and the official release the build is based on.
+    plutil -insert NeptaterRepoRoot -string "$PWD" "$STAGE/Contents/Info.plist"
+    # NEPTATER_FAKE_BASE_TAG=v… pretends an older base, so the update offer and
+    # the whole rebuild can be exercised without a new official release.
+    NEPTATER_BASE_TAG="${NEPTATER_FAKE_BASE_TAG:-$(git describe --tags --abbrev=0 --match 'v*' --exclude '*-*' HEAD 2>/dev/null || true)}"
+    if [[ -n "$NEPTATER_BASE_TAG" ]]; then
+        plutil -insert NeptaterBaseTag -string "$NEPTATER_BASE_TAG" "$STAGE/Contents/Info.plist"
+    fi
 fi
 if (( DEV )); then
     # Stamp the source commit + build time so the running dev app shows (in About)

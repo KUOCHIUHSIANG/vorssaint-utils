@@ -2671,7 +2671,7 @@ struct UpdateBanner: View {
             }
             .buttonStyle(.plain)
         case let .downloading(progress):
-            progressRow(l10n.s.updateDownloading, fraction: progress)
+            progressRow(updates.progressTitle ?? l10n.s.updateDownloading, fraction: progress)
         case .installing:
             progressRow(l10n.s.updateInstalling)
         default:

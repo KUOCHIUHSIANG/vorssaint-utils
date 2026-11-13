@@ -695,7 +695,7 @@ struct UpdatesView: View {
             label("\(l10n.s.updateAvailablePrefix) \(version)", system: "arrow.down.circle.fill", tint: .accentColor)
         case let .downloading(progress):
             if let progress {
-                label("\(l10n.s.updateDownloading) \(Int(progress * 100))%",
+                label("\(updates.progressTitle ?? l10n.s.updateDownloading) \(Int(progress * 100))%",
                       system: "arrow.down.circle", tint: .secondary)
             } else {
                 label(l10n.s.updateDownloading, system: "arrow.down.circle", tint: .secondary)
@@ -703,7 +703,7 @@ struct UpdatesView: View {
         case .installing:
             label(l10n.s.updateInstalling, system: "gearshape.2.fill", tint: .secondary)
         case let .failed(reason):
-            label("\(l10n.s.updateFailedPrefix) \(reason)", system: "exclamationmark.triangle.fill", tint: .orange)
+            label("\(updates.progressTitle ?? l10n.s.updateFailedPrefix) \(reason)", system: "exclamationmark.triangle.fill", tint: .orange)
         }
     }
 

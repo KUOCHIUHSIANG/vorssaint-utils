@@ -26,6 +26,8 @@ final class UpdateService: ObservableObject {
     /// Markdown release notes for the available update, shown in the pre-install
     /// preview. Set alongside `.available`; cleared otherwise.
     @Published private(set) var availableNotes: String?
+    /// Neptater: the step its rebuild is on, shown instead of "Downloading".
+    @Published private(set) var progressTitle: String?
 
     private let repository = "vorssaint/vorssaint-utils"
     private var downloadURL: URL?
@@ -62,8 +64,9 @@ final class UpdateService: ObservableObject {
     /// Called at launch: checks shortly after start and then daily, if enabled.
     func startAutomaticChecks() {
         consumeInstallResult()
-        // The official feed would install Vorssaint over Neptater.
-        if AppInfo.isNeptater { return }
+        // Neptater rebuilds itself from its checkout instead of installing
+        // official DMGs; this shows what its last rebuild did.
+        if AppInfo.isNeptater { NeptaterForkUpdate.shared.launchDidFinish() }
         if AppInfo.isBeta && UserDefaults.standard.object(forKey: DefaultsKey.includeBetaUpdates) == nil {
             UserDefaults.standard.set(true, forKey: DefaultsKey.includeBetaUpdates)
         }
@@ -103,7 +106,7 @@ final class UpdateService: ObservableObject {
 
     func check(manual: Bool) {
         if AppInfo.isNeptater {
-            if manual { state = .failed("Neptater does not install official Vorssaint releases") }
+            NeptaterForkUpdate.shared.check(manual: manual)
             return
         }
         if AppInfo.isDeveloperBuild {
@@ -213,6 +216,10 @@ final class UpdateService: ObservableObject {
 
     func downloadAndInstall() {
         if AppInfo.isDeveloperBuild { return }  // never replace the local dev build over itself
+        if AppInfo.isNeptater {
+            NeptaterForkUpdate.shared.syncAndInstall()
+            return
+        }
         guard let downloadURL else { return }
         // Pre-flight BEFORE spending the download: a translocated app or one
         // running from a read-only volume (the mounted DMG) can never be
@@ -588,6 +595,19 @@ final class BoundedUpdateDownloadDelegate: NSObject, URLSessionDataDelegate {
             try? FileManager.default.removeItem(at: fileURL)
         }
         completion(location, response, error)
+    }
+}
+
+// MARK: - Neptater
+
+extension UpdateService {
+    /// Lets NeptaterForkUpdate drive the state these views already show.
+    func applyForkState(_ newState: State, notes: String? = nil, progressTitle: String? = nil,
+                        checkedNow: Bool = false) {
+        state = newState
+        availableNotes = notes
+        self.progressTitle = progressTitle
+        if checkedNow { lastChecked = Date() }
     }
 }
 
