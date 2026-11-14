@@ -296,7 +296,7 @@ struct MenuPanelView: View {
         case .keepAwake: return 250
         case .brightness: return 140
         case .mixer: return 250
-        case .nommo: return 150
+        case .nommo: return 230
         case .system: return 460
         case .network: return 190
         case .disk: return 360

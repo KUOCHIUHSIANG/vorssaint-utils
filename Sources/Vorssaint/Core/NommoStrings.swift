@@ -86,7 +86,7 @@ extension FeatureStrings {
 
 extension NommoFeatureStrings {
     static let enUS = NommoFeatureStrings(
-        title: "Nommo V2 Speakers",
+        title: "Razer Nommo V2",
         hubDescription: "Set the subwoofer, equalizer and standby of Razer Nommo V2 speakers over USB",
         panelDescription: "Subwoofer and equalizer for Razer Nommo V2 speakers",
         showInPanel: "Show Nommo V2 in the panel",
@@ -114,7 +114,7 @@ extension NommoFeatureStrings {
         noReply: "The speakers didn’t answer. Check the USB cable and try again.")
 
     static let ptBR = NommoFeatureStrings(
-        title: "Caixas Nommo V2",
+        title: "Razer Nommo V2",
         hubDescription: "Ajuste o subwoofer, o equalizador e o modo de espera das caixas Razer Nommo V2 pelo USB",
         panelDescription: "Subwoofer e equalizador das caixas Razer Nommo V2",
         showInPanel: "Mostrar Nommo V2 no painel",
@@ -142,7 +142,7 @@ extension NommoFeatureStrings {
         noReply: "As caixas não responderam. Verifique o cabo USB e tente de novo.")
 
     static let tr = NommoFeatureStrings(
-        title: "Nommo V2 Hoparlörler",
+        title: "Razer Nommo V2",
         hubDescription: "Razer Nommo V2 hoparlörlerin subwoofer, ekolayzer ve bekleme ayarlarını USB üzerinden yapın",
         panelDescription: "Razer Nommo V2 hoparlörler için subwoofer ve ekolayzer",
         showInPanel: "Nommo V2’yi panelde göster",
@@ -170,7 +170,7 @@ extension NommoFeatureStrings {
         noReply: "Hoparlörler yanıt vermiyor. USB kablosunu kontrol edip yeniden deneyin.")
 
     static let ru = NommoFeatureStrings(
-        title: "Колонки Nommo V2",
+        title: "Razer Nommo V2",
         hubDescription: "Настройка сабвуфера, эквалайзера и режима ожидания колонок Razer Nommo V2 по USB",
         panelDescription: "Сабвуфер и эквалайзер колонок Razer Nommo V2",
         showInPanel: "Показывать Nommo V2 на панели",
@@ -198,7 +198,7 @@ extension NommoFeatureStrings {
         noReply: "Колонки не отвечают. Проверьте USB-кабель и повторите попытку.")
 
     static let es = NommoFeatureStrings(
-        title: "Altavoces Nommo V2",
+        title: "Razer Nommo V2",
         hubDescription: "Ajusta el subwoofer, el ecualizador y el modo de espera de los altavoces Razer Nommo V2 por USB",
         panelDescription: "Subwoofer y ecualizador de los altavoces Razer Nommo V2",
         showInPanel: "Mostrar Nommo V2 en el panel",
@@ -226,7 +226,7 @@ extension NommoFeatureStrings {
         noReply: "Los altavoces no responden. Revisa el cable USB e inténtalo de nuevo.")
 
     static let sk = NommoFeatureStrings(
-        title: "Reproduktory Nommo V2",
+        title: "Razer Nommo V2",
         hubDescription: "Nastavenie subwoofera, ekvalizéra a pohotovostného režimu reproduktorov Razer Nommo V2 cez USB",
         panelDescription: "Subwoofer a ekvalizér reproduktorov Razer Nommo V2",
         showInPanel: "Zobraziť Nommo V2 na paneli",
@@ -254,7 +254,7 @@ extension NommoFeatureStrings {
         noReply: "Reproduktory neodpovedajú. Skontrolujte kábel USB a skúste to znova.")
 
     static let de = NommoFeatureStrings(
-        title: "Nommo-V2-Lautsprecher",
+        title: "Razer Nommo V2",
         hubDescription: "Subwoofer, Equalizer und Standby von Razer-Nommo-V2-Lautsprechern über USB einstellen",
         panelDescription: "Subwoofer und Equalizer für Razer-Nommo-V2-Lautsprecher",
         showInPanel: "Nommo V2 im Panel anzeigen",
@@ -282,7 +282,7 @@ extension NommoFeatureStrings {
         noReply: "Die Lautsprecher antworten nicht. Prüfe das USB-Kabel und versuche es erneut.")
 
     static let fr = NommoFeatureStrings(
-        title: "Enceintes Nommo V2",
+        title: "Razer Nommo V2",
         hubDescription: "Réglez le caisson de basses, l’égaliseur et la mise en veille des enceintes Razer Nommo V2 en USB",
         panelDescription: "Caisson de basses et égaliseur des enceintes Razer Nommo V2",
         showInPanel: "Afficher Nommo V2 dans le panneau",
@@ -310,7 +310,7 @@ extension NommoFeatureStrings {
         noReply: "Les enceintes ne répondent pas. Vérifiez le câble USB et réessayez.")
 
     static let it = NommoFeatureStrings(
-        title: "Altoparlanti Nommo V2",
+        title: "Razer Nommo V2",
         hubDescription: "Regola subwoofer, equalizzatore e standby degli altoparlanti Razer Nommo V2 via USB",
         panelDescription: "Subwoofer ed equalizzatore degli altoparlanti Razer Nommo V2",
         showInPanel: "Mostra Nommo V2 nel pannello",
@@ -338,7 +338,7 @@ extension NommoFeatureStrings {
         noReply: "Gli altoparlanti non rispondono. Controlla il cavo USB e riprova.")
 
     static let ja = NommoFeatureStrings(
-        title: "Nommo V2 スピーカー",
+        title: "Razer Nommo V2",
         hubDescription: "Razer Nommo V2 スピーカーのサブウーファー、イコライザー、自動スタンバイを USB で設定",
         panelDescription: "Razer Nommo V2 スピーカーのサブウーファーとイコライザー",
         showInPanel: "パネルに Nommo V2 を表示",
@@ -366,7 +366,7 @@ extension NommoFeatureStrings {
         noReply: "スピーカーから応答がありません。USB ケーブルを確認してもう一度お試しください。")
 
     static let ko = NommoFeatureStrings(
-        title: "Nommo V2 스피커",
+        title: "Razer Nommo V2",
         hubDescription: "USB로 Razer Nommo V2 스피커의 서브우퍼, 이퀄라이저, 자동 대기를 설정",
         panelDescription: "Razer Nommo V2 스피커의 서브우퍼와 이퀄라이저",
         showInPanel: "패널에 Nommo V2 표시",
@@ -394,7 +394,7 @@ extension NommoFeatureStrings {
         noReply: "스피커가 응답하지 않습니다. USB 케이블을 확인하고 다시 시도하세요.")
 
     static let uk = NommoFeatureStrings(
-        title: "Колонки Nommo V2",
+        title: "Razer Nommo V2",
         hubDescription: "Налаштування сабвуфера, еквалайзера й режиму очікування колонок Razer Nommo V2 через USB",
         panelDescription: "Сабвуфер і еквалайзер колонок Razer Nommo V2",
         showInPanel: "Показувати Nommo V2 на панелі",
@@ -422,7 +422,7 @@ extension NommoFeatureStrings {
         noReply: "Колонки не відповідають. Перевірте USB-кабель і спробуйте ще раз.")
 
     static let zhHans = NommoFeatureStrings(
-        title: "Nommo V2 音箱",
+        title: "Razer Nommo V2",
         hubDescription: "通过 USB 调整 Razer Nommo V2 音箱的低音炮、均衡器和自动待机",
         panelDescription: "Razer Nommo V2 音箱的低音炮和均衡器",
         showInPanel: "在面板中显示 Nommo V2",
@@ -450,7 +450,7 @@ extension NommoFeatureStrings {
         noReply: "音箱没有响应，请检查 USB 线后重试。")
 
     static let zhTW = NommoFeatureStrings(
-        title: "Nommo V2 喇叭",
+        title: "Razer Nommo V2",
         hubDescription: "透過 USB 調整 Razer Nommo V2 喇叭的重低音、等化器和自動待機",
         panelDescription: "Razer Nommo V2 喇叭的重低音和等化器",
         showInPanel: "在面板中顯示 Nommo V2",
@@ -478,7 +478,7 @@ extension NommoFeatureStrings {
         noReply: "喇叭沒有回應，請檢查 USB 線後再試一次。")
 
     static let zhHK = NommoFeatureStrings(
-        title: "Nommo V2 喇叭",
+        title: "Razer Nommo V2",
         hubDescription: "透過 USB 調整 Razer Nommo V2 喇叭的重低音、均衡器和自動待機",
         panelDescription: "Razer Nommo V2 喇叭的重低音和均衡器",
         showInPanel: "在面板中顯示 Nommo V2",

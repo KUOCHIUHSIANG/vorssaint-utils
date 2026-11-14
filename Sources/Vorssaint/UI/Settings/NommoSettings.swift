@@ -9,7 +9,6 @@ struct NommoSettings: View {
     @ObservedObject private var l10n = L10n.shared
     @ObservedObject private var service = NommoService.shared
     @AppStorage(DefaultsKey.panelShowNommo) private var showInPanel = true
-    @State private var editing: NommoEQPreset = .game
 
     private var strings: NommoFeatureStrings { FeatureStrings.nommo(l10n.language) }
 
@@ -38,16 +37,8 @@ struct NommoSettings: View {
                         .disabled(service.state.autoStandby == nil)
                 }
                 SettingsRow(symbol: nil, title: strings.standbyDelay) {
-                    Picker(strings.standbyDelay, selection: Binding(get: { service.state.standbyDelay ?? .fifteen },
-                                                                    set: { service.setStandbyDelay($0) })) {
-                        ForEach(NommoStandbyDelay.allCases, id: \.self) { delay in
-                            Text(String(format: strings.minutesFormat, delay.minutes)).tag(delay)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .frame(width: 220)
-                    .disabled(service.state.autoStandby != true)
+                    NommoStandbyDelayPicker()
+                        .frame(width: 220)
                 }
             }
             if service.failure != nil {
@@ -68,33 +59,9 @@ struct NommoSettings: View {
 
     private var curveEditor: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text(strings.editCurve)
-                    .font(.headline)
-                Spacer()
-                Picker(strings.editCurve, selection: $editing) {
-                    ForEach(NommoEQPreset.allCases.filter(\.isEditable), id: \.self) { preset in
-                        Text(strings.presetName(preset)).tag(preset)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .frame(width: 240)
-            }
-            NommoCurveEditor(curve: service.presets[editing] ?? editing.suggestedCurve) {
-                service.update(editing, curve: $0)
-            }
-            HStack(alignment: .top) {
-                Text(strings.editCaption)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 12)
-                Button(strings.restoreSuggestion) {
-                    service.restoreSuggestion(for: editing)
-                }
-                .disabled(service.presets[editing] == editing.suggestedCurve)
-            }
+            Text(strings.editCurve)
+                .font(.headline)
+            NommoPresetEditor()
         }
         .padding(.vertical, 4)
     }

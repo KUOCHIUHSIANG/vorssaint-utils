@@ -49,35 +49,82 @@ struct NommoEQMenu: View {
     }
 }
 
-/// A small bar chart of a curve, each band drawn up or down from the middle.
+/// A curve drawn the way EQ apps draw one: the ten bands joined smoothly
+/// around the zero line, with a soft fill. The scale follows the curve, down to
+/// ±4, so a gentle curve keeps its shape without small steps looking huge.
 struct NommoCurvePreview: View {
     let curve: NommoEQCurve
-    var height: CGFloat = 26
+    var height: CGFloat = 44
+
+    private static let minimumScale = 4
 
     var body: some View {
-        HStack(alignment: .center, spacing: 3) {
-            ForEach(Array(curve.bands.enumerated()), id: \.offset) { _, level in
-                let share = CGFloat(abs(level)) / CGFloat(NommoEQCurve.levels.upperBound)
-                VStack(spacing: 0) {
-                    Spacer(minLength: 0)
-                        .frame(height: level >= 0 ? height / 2 * (1 - share) : height / 2)
-                    RoundedRectangle(cornerRadius: 1.5)
-                        .fill(Color.accentColor.opacity(0.8))
-                        .frame(height: max(1.5, height / 2 * share))
-                    Spacer(minLength: 0)
+        GeometryReader { geometry in
+            let points = Self.points(for: curve, in: geometry.size)
+            let line = Self.smoothPath(through: points)
+            let middle = geometry.size.height / 2
+            ZStack {
+                Path { path in
+                    path.move(to: CGPoint(x: 0, y: middle))
+                    path.addLine(to: CGPoint(x: geometry.size.width, y: middle))
                 }
-                .frame(height: height)
-                .frame(maxWidth: .infinity)
+                .stroke(Color.primary.opacity(0.18), lineWidth: 1)
+                Path { path in
+                    path.addPath(Path(line))
+                    if let last = points.last, let first = points.first {
+                        path.addLine(to: CGPoint(x: last.x, y: middle))
+                        path.addLine(to: CGPoint(x: first.x, y: middle))
+                        path.closeSubpath()
+                    }
+                }
+                .fill(LinearGradient(stops: [.init(color: Color.accentColor.opacity(0.45), location: 0),
+                                             .init(color: Color.accentColor.opacity(0.08), location: 0.5),
+                                             .init(color: Color.accentColor.opacity(0.45), location: 1)],
+                                     startPoint: .top, endPoint: .bottom))
+                Path(line)
+                    .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                ForEach(Array(points.enumerated()), id: \.offset) { _, point in
+                    Circle()
+                        .fill(Color.accentColor)
+                        .frame(width: 4, height: 4)
+                        .position(point)
+                }
             }
         }
-        .background(Rectangle().fill(Color.primary.opacity(0.15)).frame(height: 1))
+        .frame(height: height)
+        .padding(.horizontal, 3)
         .accessibilityHidden(true)
+    }
+
+    private static func points(for curve: NommoEQCurve, in size: CGSize) -> [CGPoint] {
+        let scale = CGFloat(max(minimumScale, curve.bands.map(abs).max() ?? 0))
+        let step = size.width / CGFloat(NommoEQCurve.bandCount - 1)
+        let reach = size.height / 2 - 4
+        return curve.bands.enumerated().map { index, level in
+            CGPoint(x: CGFloat(index) * step, y: size.height / 2 - CGFloat(level) / scale * reach)
+        }
+    }
+
+    /// Catmull-Rom through every band, as cubic Béziers.
+    private static func smoothPath(through points: [CGPoint]) -> CGPath {
+        let path = CGMutablePath()
+        guard let first = points.first else { return path }
+        path.move(to: first)
+        for index in 0..<(points.count - 1) {
+            let before = points[max(index - 1, 0)], start = points[index]
+            let end = points[index + 1], after = points[min(index + 2, points.count - 1)]
+            path.addCurve(to: end,
+                          control1: CGPoint(x: start.x + (end.x - before.x) / 6, y: start.y + (end.y - before.y) / 6),
+                          control2: CGPoint(x: end.x - (after.x - start.x) / 6, y: end.y - (after.y - start.y) / 6))
+        }
+        return path
     }
 }
 
 /// Ten bands, each dragged in whole steps from −12 to +12.
 struct NommoCurveEditor: View {
     let curve: NommoEQCurve
+    var sliderHeight: CGFloat = 120
     let onChange: (NommoEQCurve) -> Void
 
     var body: some View {
@@ -87,7 +134,7 @@ struct NommoCurveEditor: View {
                     Text(Self.signed(curve.bands[band]))
                         .font(.system(size: 10, weight: .medium).monospacedDigit())
                         .foregroundStyle(.secondary)
-                    NommoBandSlider(value: curve.bands[band],
+                    NommoBandSlider(value: curve.bands[band], height: sliderHeight,
                                     label: NommoEQCurve.frequencyLabels[band]) {
                         onChange(curve.setting(band: band, to: $0))
                     }
@@ -107,10 +154,10 @@ struct NommoCurveEditor: View {
 
 private struct NommoBandSlider: View {
     let value: Int
+    let height: CGFloat
     let label: String
     let onChange: (Int) -> Void
 
-    private static let height: CGFloat = 120
     private static let lower = NommoEQCurve.levels.lowerBound
     private static let span = CGFloat(NommoEQCurve.levels.upperBound - NommoEQCurve.levels.lowerBound)
 
@@ -145,7 +192,7 @@ private struct NommoBandSlider: View {
                 if level != value { onChange(level) }
             })
         }
-        .frame(width: 28, height: Self.height)
+        .frame(width: 28, height: height)
         .accessibilityElement()
         .accessibilityLabel(label)
         .accessibilityValue(NommoCurveEditor.signed(value))
@@ -156,5 +203,67 @@ private struct NommoBandSlider: View {
             @unknown default: break
             }
         }
+    }
+}
+
+/// The presets kept on this Mac, edited in place: dragging a band saves the
+/// curve and plays it on the speakers. Opens on the preset in use, if any.
+struct NommoPresetEditor: View {
+    var compact = false
+    @ObservedObject private var l10n = L10n.shared
+    @ObservedObject private var service = NommoService.shared
+    @State private var editing: NommoEQPreset = .game
+
+    private var strings: NommoFeatureStrings { FeatureStrings.nommo(l10n.language) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: compact ? 8 : 10) {
+            Picker(strings.editCurve, selection: $editing) {
+                ForEach(NommoEQPreset.allCases.filter(\.isEditable), id: \.self) { preset in
+                    Text(strings.presetName(preset)).tag(preset)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            NommoCurveEditor(curve: service.presets[editing] ?? editing.suggestedCurve,
+                             sliderHeight: compact ? 90 : 120) {
+                service.update(editing, curve: $0)
+            }
+            HStack(alignment: .top) {
+                Text(strings.editCaption)
+                    .font(compact ? .system(size: 9.5) : .caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 8)
+                Button(strings.restoreSuggestion) {
+                    service.restoreSuggestion(for: editing)
+                }
+                .controlSize(compact ? .small : .regular)
+                .disabled(service.presets[editing] == editing.suggestedCurve)
+            }
+        }
+        .onAppear {
+            if case let .preset(preset) = service.selection, preset.isEditable { editing = preset }
+        }
+    }
+}
+
+/// 15, 30 or 45 minutes: the only delays the speaker accepts.
+struct NommoStandbyDelayPicker: View {
+    @ObservedObject private var l10n = L10n.shared
+    @ObservedObject private var service = NommoService.shared
+
+    private var strings: NommoFeatureStrings { FeatureStrings.nommo(l10n.language) }
+
+    var body: some View {
+        Picker(strings.standbyDelay, selection: Binding(get: { service.state.standbyDelay ?? .fifteen },
+                                                        set: { service.setStandbyDelay($0) })) {
+            ForEach(NommoStandbyDelay.allCases, id: \.self) { delay in
+                Text(String(format: strings.minutesFormat, delay.minutes)).tag(delay)
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .disabled(service.state.autoStandby != true)
     }
 }
