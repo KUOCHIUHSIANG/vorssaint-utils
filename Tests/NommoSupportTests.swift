@@ -107,12 +107,45 @@ enum NommoSupportTests {
         let red = NommoCommand.fillFrame(red: 0xFF, green: 0x10, blue: 0x00).arguments
         suite.expect(red.count == 5 + 36 && Array(red[5..<8]) == [0xFF, 0x10, 0x00] && Array(red[38..<41]) == [0xFF, 0x10, 0x00],
                      "a frame repeats the color for all twelve LEDs")
-        suite.expect(NommoLighting.off.commands == [.enterFrameMode, .fillFrame(red: 0, green: 0, blue: 0)],
-                     "off stops the animation and shows a black frame")
-        suite.expect(NommoLighting.spectrum.commands == [.resumeAnimation], "spectrum resumes the built-in cycle")
         suite.expect(NommoCommand.resumeAnimation.arguments == [0x00, 0x00, 0x00]
                         && NommoCommand.enterFrameMode.arguments == [0x00, 0x00, 0x08, 0x00, 0x01],
                      "frame mode and the animation use the arguments confirmed on the speaker")
+
+        // Colors
+        suite.expect(NommoColor(hue: 0) == NommoColor(red: 255, green: 0, blue: 0)
+                        && NommoColor(hue: 120) == NommoColor(red: 0, green: 255, blue: 0)
+                        && NommoColor(hue: 420) == NommoColor(hue: 60), "hues wrap round the color wheel")
+        for mode in NommoBuiltInMode.allCases {
+            let hue = mode.indicatorColor.hue ?? -1
+            suite.expect(NommoColor(hue: hue) == mode.indicatorColor,
+                         "the \(mode.razerName) color can start a rainbow at its own hue")
+        }
+        suite.expect(NommoColor.black.hue == nil, "black has no hue")
+        suite.expect(NommoColor(red: 200, green: 100, blue: 0).scaled(0.5) == NommoColor(red: 100, green: 50, blue: 0),
+                     "scaling dims every channel alike")
+
+        // Drawn programs
+        let music = NommoBuiltInMode.music.indicatorColor
+        let fadeOff = NommoLightingProgram(target: .off, start: .color(music), began: 100)
+        suite.expect(fadeOff.frame(at: 100).color == music && fadeOff.frame(at: 100).moving,
+                     "off starts from the mode's color, so taking over shows no jump")
+        suite.expect(fadeOff.frame(at: 100.5).color.red < music.red / 2 && fadeOff.frame(at: 100.5).moving,
+                     "off fades the color out, under half way at the halfway point")
+        suite.expect(fadeOff.frame(at: 101).color == .black && !fadeOff.frame(at: 101).moving,
+                     "off ends black and stops drawing")
+        let fromMusic = NommoLightingProgram(target: .spectrum, start: .color(music), began: 0)
+        suite.expect(fromMusic.frame(at: 0).color == music, "the rainbow starts on the mode's own color")
+        let quarter = NommoLighting.rainbowPeriod / 4
+        suite.expect(fromMusic.frame(at: quarter).color == NommoColor(hue: 90) && fromMusic.frame(at: quarter).moving,
+                     "the rainbow flows on from there without a fade")
+        let fromBlack = NommoLightingProgram(target: .spectrum, start: .black, began: 0)
+        suite.expect(fromBlack.frame(at: 0).color == .black, "a rainbow from off fades in from black")
+        suite.expect(fromBlack.frame(at: NommoLighting.fadeDuration).color
+                        == NommoColor(hue: 360 * NommoLighting.fadeDuration / NommoLighting.rainbowPeriod),
+                     "after the fade in the rainbow is at full strength")
+        suite.expect(NommoLightingProgram(target: .off, start: .black, began: 0).frame(at: 0) == (.black, false),
+                     "off from off draws one black frame and stops")
+        suite.expect(NommoLighting.frameInterval >= 1.0 / 30, "frames are paced, never sent back to back")
         suite.expect(NommoLighting.eqColorHold == 3, "the strings promise a built-in mode's color shows for 3 seconds")
         suite.expect(NommoCommand.writeBrightness(300).arguments == [0x01, 0x00, 0xFF]
                         && NommoCommand.readBrightness.arguments == [0x01, 0x00],

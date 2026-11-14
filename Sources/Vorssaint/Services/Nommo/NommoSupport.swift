@@ -344,9 +344,81 @@ enum NommoStandbyDelay: Int, CaseIterable {
     }
 }
 
+/// One color for all twelve LEDs.
+struct NommoColor: Equatable {
+    let red: UInt8
+    let green: UInt8
+    let blue: UInt8
+
+    static let black = NommoColor(red: 0, green: 0, blue: 0)
+
+    init(red: UInt8, green: UInt8, blue: UInt8) {
+        self.red = red
+        self.green = green
+        self.blue = blue
+    }
+
+    /// Full saturation and brightness, 0° red, 120° green, 240° blue.
+    init(hue degrees: Double) {
+        let wrapped = degrees.truncatingRemainder(dividingBy: 360)
+        let sector = (wrapped < 0 ? wrapped + 360 : wrapped) / 60
+        let rising = 1 - abs(sector.truncatingRemainder(dividingBy: 2) - 1)
+        let (r, g, b): (Double, Double, Double)
+        switch Int(sector) {
+        case 0: (r, g, b) = (1, rising, 0)
+        case 1: (r, g, b) = (rising, 1, 0)
+        case 2: (r, g, b) = (0, 1, rising)
+        case 3: (r, g, b) = (0, rising, 1)
+        case 4: (r, g, b) = (rising, 0, 1)
+        default: (r, g, b) = (1, 0, rising)
+        }
+        self.init(red: UInt8((r * 255).rounded()), green: UInt8((g * 255).rounded()), blue: UInt8((b * 255).rounded()))
+    }
+
+    /// The hue in degrees, or nil for black, white and greys.
+    var hue: Double? {
+        let r = Double(red), g = Double(green), b = Double(blue)
+        let high = max(r, g, b), low = min(r, g, b)
+        guard high > low else { return nil }
+        let span = high - low
+        let degrees: Double
+        if high == r {
+            degrees = 60 * ((g - b) / span).truncatingRemainder(dividingBy: 6)
+        } else if high == g {
+            degrees = 60 * ((b - r) / span + 2)
+        } else {
+            degrees = 60 * ((r - g) / span + 4)
+        }
+        return degrees < 0 ? degrees + 360 : degrees
+    }
+
+    func scaled(_ factor: Double) -> NommoColor {
+        let share = min(max(factor, 0), 1)
+        func scale(_ channel: UInt8) -> UInt8 { UInt8((Double(channel) * share).rounded()) }
+        return NommoColor(red: scale(red), green: scale(green), blue: scale(blue))
+    }
+}
+
+extension NommoBuiltInMode {
+    /// The color the speakers switch to on this mode and keep (Jater's
+    /// observation; the exact shades are a guess at pure colors).
+    var indicatorColor: NommoColor {
+        switch self {
+        case .game: return NommoColor(red: 0, green: 255, blue: 0)
+        case .music: return NommoColor(red: 255, green: 0, blue: 0)
+        case .movie: return NommoColor(red: 255, green: 255, blue: 0)
+        }
+    }
+}
+
 /// The lighting Neptater keeps the speakers on. They can't report theirs, and
 /// both powering up and a built-in EQ mode replace it (Game turns them green,
 /// Music red, Movie yellow, and that color stays), so Neptater puts it back.
+///
+/// Neptater draws the lighting itself, one frame at a time: the speakers'
+/// brightness command stalls for about 70 ms on roughly one change in sixty,
+/// while frames sent 30 times a second never did (measured on Jater's pair).
+/// Drawing also lets a built-in mode's color flow straight into the rainbow.
 enum NommoLighting: String, CaseIterable {
     case off, spectrum
 
@@ -356,20 +428,27 @@ enum NommoLighting: String, CaseIterable {
     /// The speakers reset their lighting during their first seconds on USB (up
     /// to 2.5 s after power-on); frames sent before that are lost.
     static let connectSettle: TimeInterval = 5
-
-    /// Turning off and on fades through the brightness, the way the speakers
-    /// fade on power-off and power-on, rather than cutting. A fade steps as
-    /// fast as the speakers answer (a brightness write takes about 11 ms, so
-    /// roughly 90 steps a second), each step placed by the time elapsed.
+    /// Frames go out at this pace while something moves: back to back, the
+    /// speakers stall for 70 ms now and then, and once froze for 5 s.
+    static let frameInterval: TimeInterval = 1.0 / 30
     static let fadeDuration: TimeInterval = 1.0
     /// Between linear and perceptual (2.2): dim enough steps to look even,
     /// without lingering on the coarse 3, 2, 1 levels at the bottom.
     static let fadeGamma = 1.6
+    /// One trip round the color wheel.
+    static let rainbowPeriod: TimeInterval = 10
     static let fullBrightness = 255
 
     static func clampedBrightness(_ level: Int) -> Int { min(max(level, 0), fullBrightness) }
 
-    /// The brightness `progress` (0 to 1) of the way from `start` to `end`.
+    /// How lit a fade is `progress` (0 to 1) of the way out (or in), as a
+    /// factor on each channel, even to the eye.
+    static func fadeOutFactor(_ progress: Double) -> Double { pow(1 - min(max(progress, 0), 1), fadeGamma) }
+    static func fadeInFactor(_ progress: Double) -> Double { pow(min(max(progress, 0), 1), fadeGamma) }
+
+    /// The brightness `progress` of the way from `start` to `end`, for the one
+    /// fade Neptater can't draw: out of the speakers' own animation after a
+    /// power-up, whose colors it doesn't know.
     static func fadeLevel(from start: Int, to end: Int, progress: Double) -> Int {
         func perceived(_ level: Int) -> Double {
             pow(Double(clampedBrightness(level)) / Double(fullBrightness), 1 / fadeGamma)
@@ -378,11 +457,38 @@ enum NommoLighting: String, CaseIterable {
         let level = perceived(start) + (perceived(end) - perceived(start)) * share
         return Int((pow(level, fadeGamma) * Double(fullBrightness)).rounded())
     }
+}
 
-    var commands: [NommoCommand] {
-        switch self {
-        case .off: return [.enterFrameMode, .fillFrame(red: 0, green: 0, blue: 0)]
-        case .spectrum: return [.resumeAnimation]
+/// What the LEDs show over time on the way to a lighting choice: from black
+/// or from a known color (a built-in mode's), then holding the target.
+struct NommoLightingProgram: Equatable {
+    enum Start: Equatable {
+        case black
+        case color(NommoColor)
+    }
+
+    let target: NommoLighting
+    let start: Start
+    /// Seconds on a monotonic clock.
+    let began: TimeInterval
+
+    /// The frame for `time`, and whether later frames will differ.
+    func frame(at time: TimeInterval) -> (color: NommoColor, moving: Bool) {
+        let elapsed = max(0, time - began)
+        let fade = elapsed / NommoLighting.fadeDuration
+        switch (target, start) {
+        case (.off, .black):
+            return (.black, false)
+        case let (.off, .color(color)):
+            guard fade < 1 else { return (.black, false) }
+            return (color.scaled(NommoLighting.fadeOutFactor(fade)), true)
+        case (.spectrum, .black):
+            let color = NommoColor(hue: 360 * elapsed / NommoLighting.rainbowPeriod)
+            return (fade < 1 ? color.scaled(NommoLighting.fadeInFactor(fade)) : color, true)
+        case let (.spectrum, .color(color)):
+            // The rainbow picks up at the color's own hue, so it just starts flowing.
+            let hue = (color.hue ?? 0) + 360 * elapsed / NommoLighting.rainbowPeriod
+            return (NommoColor(hue: hue), true)
         }
     }
 }

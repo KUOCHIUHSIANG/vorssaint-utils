@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Jater
 
-import Foundation
+import AppKit
 import IOKit.hid
 import os
 
@@ -14,9 +14,10 @@ import os
 ///
 /// The speaker keeps its subwoofer level, EQ and standby settings while off,
 /// so connecting only reads them. Its lighting it can neither keep nor report,
-/// so Neptater stores the chosen lighting and puts it back after a power-up or
-/// a built-in EQ mode's color. Nothing polls: state refreshes when the panel or
-/// Settings shows it.
+/// so Neptater stores the chosen lighting and draws it frame by frame (see
+/// `NommoLighting`), taking over again after a power-up or a built-in EQ
+/// mode's color. Nothing polls: state refreshes when the panel or Settings
+/// shows it.
 final class NommoService: ObservableObject {
     static let shared = NommoService()
 
@@ -50,9 +51,15 @@ final class NommoService: ObservableObject {
     private var device: IOHIDDevice?
     private var pendingCurve: DispatchWorkItem?
     private var pendingLighting: DispatchWorkItem?
-    /// What the LEDs show as far as Neptater knows: nil once a power-up or a
-    /// built-in EQ mode has replaced it. Main thread only.
-    private var shownLighting: NommoLighting?
+    private var observers: [NSObjectProtocol] = []
+
+    // Drawing state, touched only on `queue`.
+    private var drawingDevice: IOHIDDevice?
+    private var program: NommoLightingProgram?
+    private var drawnColor: NommoColor?
+    /// Whether the speakers show host frames; a power-up or a built-in mode ends it.
+    private var inFrameMode = false
+    private var frameTimer: DispatchSourceTimer?
 
     private init() {
         presets = NommoEQPresetStore.decode(UserDefaults.standard.string(forKey: DefaultsKey.nommoEQPresets))
@@ -87,6 +94,19 @@ final class NommoService: ObservableObject {
         // manager would open every interface of the speaker.
         IOHIDManagerScheduleWithRunLoop(manager, CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue)
         self.manager = manager
+        let workspace = NSWorkspace.shared.notificationCenter
+        observers = [
+            workspace.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
+                self?.queue.async { self?.pauseDrawing() }
+            },
+            workspace.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
+                self?.queue.async { self?.resumeDrawing() }
+            },
+            NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification,
+                                                   object: nil, queue: .main) { [weak self] _ in
+                self?.handBackLighting()
+            },
+        ]
     }
 
     private func stop() {
@@ -94,6 +114,9 @@ final class NommoService: ObservableObject {
         pendingCurve = nil
         pendingLighting?.cancel()
         pendingLighting = nil
+        observers.forEach { NSWorkspace.shared.notificationCenter.removeObserver($0) }
+        observers.forEach { NotificationCenter.default.removeObserver($0) }
+        observers = []
         if let manager {
             IOHIDManagerRegisterDeviceMatchingCallback(manager, nil, nil)
             IOHIDManagerRegisterDeviceRemovalCallback(manager, nil, nil)
@@ -110,9 +133,13 @@ final class NommoService: ObservableObject {
         device = candidate
         isConnected = true
         failure = nil
-        shownLighting = nil
         refresh()
-        restoreLighting(after: NommoLighting.connectSettle)
+        // The speakers run their own power-up animation first; take over after it.
+        schedule(after: NommoLighting.connectSettle) { [weak self] in
+            guard let self, let device = self.device else { return }
+            let lighting = self.lighting
+            self.queue.async { self.takeOver(lighting, on: device) }
+        }
     }
 
     private func deviceDisappeared(_ gone: IOHIDDevice) {
@@ -121,6 +148,9 @@ final class NommoService: ObservableObject {
     }
 
     private func closeDevice() {
+        pendingLighting?.cancel()
+        pendingLighting = nil
+        queue.async { [weak self] in self?.stopDrawing() }
         if let device { IOHIDDeviceClose(device, IOOptionBits(kIOHIDOptionsTypeNone)) }
         device = nil
         isConnected = false
@@ -177,13 +207,20 @@ final class NommoService: ObservableObject {
     func select(_ selection: NommoEQSelection) {
         switch selection {
         case let .builtIn(mode):
+            guard let device else { return }
+            // Stop drawing first, or the next frame would cover the mode's color.
+            pendingLighting?.cancel()
+            queue.async { [weak self] in self?.yield(to: mode) }
             perform { exchange in
                 _ = try exchange(.selectBuiltIn(mode))
                 return try Self.readState(exchange)
             }
-            // The mode's color shows for a moment, then the chosen lighting returns.
-            shownLighting = nil
-            restoreLighting(after: NommoLighting.eqColorHold)
+            // The mode's color shows for a moment, then flows into the chosen lighting.
+            schedule(after: NommoLighting.eqColorHold) { [weak self] in
+                guard let self else { return }
+                let lighting = self.lighting
+                self.queue.async { self.draw(lighting, from: .color(mode.indicatorColor), on: device) }
+            }
         case let .preset(preset):
             guard let curve = presets[preset] else { return }
             writeCurve(curve, after: 0)
@@ -224,48 +261,150 @@ final class NommoService: ObservableObject {
     func setLighting(_ lighting: NommoLighting) {
         self.lighting = lighting
         UserDefaults.standard.set(lighting.rawValue, forKey: DefaultsKey.nommoLighting)
-        restoreLighting(after: 0)
+        pendingLighting?.cancel()
+        guard let device else { return }
+        queue.async { [weak self] in self?.draw(lighting, from: nil, on: device) }
     }
 
-    /// Puts the chosen lighting back, fading through the brightness instead of
-    /// cutting: down from whatever the LEDs show, then up into the spectrum.
-    private func restoreLighting(after delay: TimeInterval) {
+    private func schedule(after delay: TimeInterval, _ work: @escaping () -> Void) {
         pendingLighting?.cancel()
-        let work = DispatchWorkItem { [weak self] in
-            guard let self else { return }
-            let lighting = self.lighting
-            // A fade out of LEDs already off would only delay the change.
-            let fadeOut = self.shownLighting != .off
-            let adoptBrightness = !Self.brightnessIsSaved
-            let savedBrightness = UserDefaults.standard.integer(forKey: DefaultsKey.nommoLightingBrightness)
-            self.shownLighting = lighting
-            self.perform { exchange in
-                var brightness = NommoLighting.clampedBrightness(savedBrightness)
-                if adoptBrightness {
-                    // The first time, keep the brightness the speakers already had.
-                    let current = Int(try exchange(.readBrightness).arguments[2])
-                    if current > 0 {
-                        brightness = current
-                        UserDefaults.standard.set(current, forKey: DefaultsKey.nommoLightingBrightness)
-                    }
-                }
-                if fadeOut {
-                    try Self.fade(from: brightness, to: 0, exchange)
-                } else if lighting == .spectrum {
-                    _ = try exchange(.writeBrightness(0))
-                }
-                for command in lighting.commands { _ = try exchange(command) }
-                if lighting == .spectrum {
-                    try Self.fade(from: 0, to: brightness, exchange)
-                } else {
-                    // Unseen behind the black frame, and ready for the next fade in.
-                    _ = try exchange(.writeBrightness(brightness))
-                }
-                return nil
+        let item = DispatchWorkItem(block: work)
+        pendingLighting = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: item)
+    }
+
+    // MARK: - Drawing (on `queue` only)
+
+    /// Starts drawing `target`, from `start` or, when nil, from whatever is on
+    /// the LEDs now, so a change of mind mid-fade carries on from there.
+    private func draw(_ target: NommoLighting, from start: NommoLightingProgram.Start?, on device: IOHIDDevice) {
+        drawingDevice = device
+        let origin = start ?? drawnColor.map { $0 == .black ? .black : .color($0) } ?? .black
+        program = NommoLightingProgram(target: target, start: origin,
+                                       began: ProcessInfo.processInfo.systemUptime)
+        do {
+            if !inFrameMode {
+                // Frame first, so entering frame mode shows it rather than an old one.
+                let first = program?.frame(at: ProcessInfo.processInfo.systemUptime).color ?? .black
+                try sendFrame(first, to: device)
+                _ = try Self.exchange(.enterFrameMode, with: device)
+                inFrameMode = true
             }
+        } catch {
+            drawingFailed(error)
+            return
         }
-        pendingLighting = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+        drawFrame()
+        if program != nil, frameTimer == nil { startFrameTimer() }
+    }
+
+    /// After a power-up the speakers run their own animation, whose colors
+    /// Neptater can't know, so this one fade goes through the brightness.
+    private func takeOver(_ target: NommoLighting, on device: IOHIDDevice) {
+        stopDrawing()
+        drawingDevice = device
+        do {
+            let brightness = try currentBrightness(on: device)
+            try fadeBrightness(from: brightness, to: 0, on: device)
+            try sendFrame(.black, to: device)
+            _ = try Self.exchange(.enterFrameMode, with: device)
+            try sendFrame(.black, to: device)
+            inFrameMode = true
+            // Unseen behind black, and where the drawn fade in needs it.
+            _ = try Self.exchange(.writeBrightness(brightness), with: device)
+        } catch {
+            drawingFailed(error)
+            return
+        }
+        draw(target, from: .black, on: device)
+    }
+
+    /// A built-in mode takes the LEDs: stop drawing and leave its color showing.
+    private func yield(to mode: NommoBuiltInMode) {
+        stopFrameTimer()
+        program = nil
+        inFrameMode = false
+        drawnColor = mode.indicatorColor
+    }
+
+    private func drawFrame() {
+        guard let program, let device = drawingDevice else {
+            stopFrameTimer()
+            return
+        }
+        let (color, moving) = program.frame(at: ProcessInfo.processInfo.systemUptime)
+        do {
+            if color != drawnColor { try sendFrame(color, to: device) }
+        } catch {
+            drawingFailed(error)
+            return
+        }
+        if !moving { stopFrameTimer() }
+    }
+
+    private func sendFrame(_ color: NommoColor, to device: IOHIDDevice) throws {
+        _ = try Self.exchange(.fillFrame(red: color.red, green: color.green, blue: color.blue), with: device)
+        drawnColor = color
+    }
+
+    private func startFrameTimer() {
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        timer.schedule(deadline: .now() + NommoLighting.frameInterval, repeating: NommoLighting.frameInterval,
+                       leeway: .milliseconds(2))
+        timer.setEventHandler { [weak self] in self?.drawFrame() }
+        frameTimer = timer
+        timer.resume()
+    }
+
+    private func stopFrameTimer() {
+        frameTimer?.cancel()
+        frameTimer = nil
+    }
+
+    private func stopDrawing() {
+        stopFrameTimer()
+        program = nil
+        drawnColor = nil
+        inFrameMode = false
+        drawingDevice = nil
+    }
+
+    private func pauseDrawing() {
+        stopFrameTimer()
+    }
+
+    private func resumeDrawing() {
+        guard program != nil, drawingDevice != nil, frameTimer == nil else { return }
+        drawFrame()
+        if program != nil { startFrameTimer() }
+    }
+
+    private func drawingFailed(_ error: Error) {
+        stopFrameTimer()
+        program = nil
+        Self.log.error("speaker lighting failed: \(String(describing: error), privacy: .public)")
+        DispatchQueue.main.async { [weak self] in self?.failure = .noReply }
+    }
+
+    /// On quit a drawn rainbow would freeze, so the speakers' own takes over.
+    private func handBackLighting() {
+        guard lighting == .spectrum else { return }
+        queue.sync {
+            guard let device = drawingDevice else { return }
+            stopFrameTimer()
+            _ = try? Self.exchange(.resumeAnimation, with: device)
+        }
+    }
+
+    /// The brightness fades return to; the first time, the speakers' own.
+    private func currentBrightness(on device: IOHIDDevice) throws -> Int {
+        if Self.brightnessIsSaved {
+            return NommoLighting.clampedBrightness(UserDefaults.standard.integer(forKey: DefaultsKey.nommoLightingBrightness))
+        }
+        let current = Int(try Self.exchange(.readBrightness, with: device).arguments[2])
+        guard current > 0 else { return NommoLighting.fullBrightness }
+        UserDefaults.standard.set(current, forKey: DefaultsKey.nommoLightingBrightness)
+        return current
     }
 
     private static var brightnessIsSaved: Bool {
@@ -273,21 +412,19 @@ final class NommoService: ObservableObject {
         return UserDefaults.standard.persistentDomain(forName: domain)?[DefaultsKey.nommoLightingBrightness] != nil
     }
 
-    /// As many steps as the speakers take, each at the level its moment calls
-    /// for, so a slow reply delays one step instead of the whole fade.
-    private static func fade(from start: Int, to end: Int, _ exchange: Exchange) throws {
-        let begin = Date()
+    /// Paced like frames; the brightness command still stalls now and then.
+    private func fadeBrightness(from start: Int, to end: Int, on device: IOHIDDevice) throws {
+        let begin = ProcessInfo.processInfo.systemUptime
         var written: Int?
         while true {
-            let progress = min(1, Date().timeIntervalSince(begin) / NommoLighting.fadeDuration)
+            let progress = min(1, (ProcessInfo.processInfo.systemUptime - begin) / NommoLighting.fadeDuration)
             let level = NommoLighting.fadeLevel(from: start, to: end, progress: progress)
             if level != written {
-                _ = try exchange(.writeBrightness(level))
+                _ = try Self.exchange(.writeBrightness(level), with: device)
                 written = level
-            } else {
-                Thread.sleep(forTimeInterval: 0.004)
             }
             if progress >= 1 { return }
+            Thread.sleep(forTimeInterval: NommoLighting.frameInterval)
         }
     }
 
