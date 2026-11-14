@@ -38,10 +38,11 @@ enum NommoSupportTests {
             .readFirmware, .readSubwoofer, .writeSubwoofer(1), .readEQMode, .selectBuiltIn(.game), .readEQCurve,
             .writeEQCurve(.flat), .readAutoStandby, .writeAutoStandby(true), .readStandbyDelay,
             .writeStandbyDelay(.fifteen), .enterFrameMode, .fillFrame(red: 0, green: 0, blue: 0), .resumeAnimation,
+            .readBrightness, .writeBrightness(128),
         ]
         let known: Set<[UInt8]> = [[0x00, 0x87], [0x08, 0x87], [0x08, 0x07], [0x08, 0x82], [0x08, 0x02],
                                    [0x08, 0x84], [0x08, 0x04], [0x07, 0x88], [0x07, 0x08], [0x07, 0x83], [0x07, 0x03],
-                                   [0x0F, 0x02], [0x0F, 0x03]]
+                                   [0x0F, 0x02], [0x0F, 0x03], [0x0F, 0x84], [0x0F, 0x04]]
         suite.expect(Set(every.map { [$0.commandClass, $0.commandID] }) == known,
                      "Neptater sends only commands confirmed on the speaker")
         suite.expect(!every.contains { $0.commandClass == 0x08 && $0.commandID == 0x0A },
@@ -113,6 +114,18 @@ enum NommoSupportTests {
                         && NommoCommand.enterFrameMode.arguments == [0x00, 0x00, 0x08, 0x00, 0x01],
                      "frame mode and the animation use the arguments confirmed on the speaker")
         suite.expect(NommoLighting.eqColorHold == 3, "the strings promise a built-in mode's color shows for 3 seconds")
+        suite.expect(NommoCommand.writeBrightness(300).arguments == [0x01, 0x00, 0xFF]
+                        && NommoCommand.readBrightness.arguments == [0x01, 0x00],
+                     "brightness writes stay within 0 to 255")
+        let fadeOut = NommoLighting.fadeLevels(from: 255, to: 0)
+        let fadeIn = NommoLighting.fadeLevels(from: 0, to: 180)
+        suite.expect(fadeOut.count == NommoLighting.fadeSteps && fadeOut.last == 0 && fadeIn.last == 180,
+                     "a fade ends exactly on its target")
+        suite.expect(zip(fadeOut, fadeOut.dropFirst()).allSatisfy { $0 >= $1 }
+                        && zip(fadeIn, fadeIn.dropFirst()).allSatisfy { $0 <= $1 },
+                     "a fade only moves one way")
+        suite.expect(fadeOut[NommoLighting.fadeSteps / 2 - 1] < 255 / 2,
+                     "halfway through a fade out the level is under half, so it looks even to the eye")
 
         // MARK: Standby and firmware
 

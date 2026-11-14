@@ -103,6 +103,9 @@ enum NommoCommand: Equatable {
     case fillFrame(red: UInt8, green: UInt8, blue: UInt8)
     /// Leaves frame mode; the built-in spectrum cycle continues.
     case resumeAnimation
+    /// Overall LED brightness, 0 to 255; it scales whatever the LEDs show.
+    case readBrightness
+    case writeBrightness(Int)
 
     var commandClass: UInt8 {
         switch self {
@@ -110,7 +113,7 @@ enum NommoCommand: Equatable {
         case .readSubwoofer, .writeSubwoofer, .readEQMode, .selectBuiltIn, .readEQCurve, .writeEQCurve:
             return 0x08
         case .readAutoStandby, .writeAutoStandby, .readStandbyDelay, .writeStandbyDelay: return 0x07
-        case .enterFrameMode, .fillFrame, .resumeAnimation: return 0x0F
+        case .enterFrameMode, .fillFrame, .resumeAnimation, .readBrightness, .writeBrightness: return 0x0F
         }
     }
 
@@ -129,6 +132,8 @@ enum NommoCommand: Equatable {
         case .writeStandbyDelay: return 0x03
         case .enterFrameMode, .resumeAnimation: return 0x02
         case .fillFrame: return 0x03
+        case .readBrightness: return 0x84
+        case .writeBrightness: return 0x04
         }
     }
 
@@ -138,6 +143,7 @@ enum NommoCommand: Equatable {
         case .readEQCurve, .writeEQCurve: return 0x0B
         case .enterFrameMode, .resumeAnimation: return 0x06
         case .fillFrame: return 0x29
+        case .readBrightness, .writeBrightness: return 0x03
         default: return 0x02
         }
     }
@@ -153,6 +159,8 @@ enum NommoCommand: Equatable {
         case let .fillFrame(red, green, blue):
             return [0x00, 0x00, 0x00, 0x00, 0x0B] + Array([[UInt8]](repeating: [red, green, blue], count: 12).joined())
         case .resumeAnimation: return [0x00, 0x00, 0x00]
+        case .readBrightness: return [0x01, 0x00]
+        case let .writeBrightness(level): return [0x01, 0x00, UInt8(NommoLighting.clampedBrightness(level))]
         default: return []
         }
     }
@@ -348,6 +356,28 @@ enum NommoLighting: String, CaseIterable {
     /// The speakers reset their lighting during their first seconds on USB (up
     /// to 2.5 s after power-on); frames sent before that are lost.
     static let connectSettle: TimeInterval = 5
+
+    /// Turning off and on fades through the brightness, the way the speakers
+    /// fade on power-off and power-on, rather than cutting.
+    static let fadeSteps = 16
+    static let fadeStepInterval: TimeInterval = 0.05
+    static let fullBrightness = 255
+
+    static func clampedBrightness(_ level: Int) -> Int { min(max(level, 0), fullBrightness) }
+
+    /// Brightness steps from `start` to `end`, ending exactly on `end`. They are
+    /// even in perceived brightness (gamma 2.2), so a fade neither rushes at
+    /// the bright end nor lingers at the dim one.
+    static func fadeLevels(from start: Int, to end: Int, steps: Int = fadeSteps) -> [Int] {
+        let gamma = 2.2
+        func perceived(_ level: Int) -> Double { pow(Double(clampedBrightness(level)) / 255, 1 / gamma) }
+        let from = perceived(start), to = perceived(end)
+        guard steps > 0 else { return [clampedBrightness(end)] }
+        return (1...steps).map { step in
+            let share = from + (to - from) * Double(step) / Double(steps)
+            return Int((pow(share, gamma) * 255).rounded())
+        }
+    }
 
     var commands: [NommoCommand] {
         switch self {

@@ -50,6 +50,9 @@ final class NommoService: ObservableObject {
     private var device: IOHIDDevice?
     private var pendingCurve: DispatchWorkItem?
     private var pendingLighting: DispatchWorkItem?
+    /// What the LEDs show as far as Neptater knows: nil once a power-up or a
+    /// built-in EQ mode has replaced it. Main thread only.
+    private var shownLighting: NommoLighting?
 
     private init() {
         presets = NommoEQPresetStore.decode(UserDefaults.standard.string(forKey: DefaultsKey.nommoEQPresets))
@@ -107,6 +110,7 @@ final class NommoService: ObservableObject {
         device = candidate
         isConnected = true
         failure = nil
+        shownLighting = nil
         refresh()
         restoreLighting(after: NommoLighting.connectSettle)
     }
@@ -178,6 +182,7 @@ final class NommoService: ObservableObject {
                 return try Self.readState(exchange)
             }
             // The mode's color shows for a moment, then the chosen lighting returns.
+            shownLighting = nil
             restoreLighting(after: NommoLighting.eqColorHold)
         case let .preset(preset):
             guard let curve = presets[preset] else { return }
@@ -222,18 +227,57 @@ final class NommoService: ObservableObject {
         restoreLighting(after: 0)
     }
 
+    /// Puts the chosen lighting back, fading through the brightness instead of
+    /// cutting: down from whatever the LEDs show, then up into the spectrum.
     private func restoreLighting(after delay: TimeInterval) {
         pendingLighting?.cancel()
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
-            let commands = self.lighting.commands
+            let lighting = self.lighting
+            // A fade out of LEDs already off would only delay the change.
+            let fadeOut = self.shownLighting != .off
+            let adoptBrightness = !Self.brightnessIsSaved
+            let savedBrightness = UserDefaults.standard.integer(forKey: DefaultsKey.nommoLightingBrightness)
+            self.shownLighting = lighting
             self.perform { exchange in
-                for command in commands { _ = try exchange(command) }
+                var brightness = NommoLighting.clampedBrightness(savedBrightness)
+                if adoptBrightness {
+                    // The first time, keep the brightness the speakers already had.
+                    let current = Int(try exchange(.readBrightness).arguments[2])
+                    if current > 0 {
+                        brightness = current
+                        UserDefaults.standard.set(current, forKey: DefaultsKey.nommoLightingBrightness)
+                    }
+                }
+                if fadeOut {
+                    try Self.fade(from: brightness, to: 0, exchange)
+                } else if lighting == .spectrum {
+                    _ = try exchange(.writeBrightness(0))
+                }
+                for command in lighting.commands { _ = try exchange(command) }
+                if lighting == .spectrum {
+                    try Self.fade(from: 0, to: brightness, exchange)
+                } else {
+                    // Unseen behind the black frame, and ready for the next fade in.
+                    _ = try exchange(.writeBrightness(brightness))
+                }
                 return nil
             }
         }
         pendingLighting = work
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    }
+
+    private static var brightnessIsSaved: Bool {
+        guard let domain = Bundle.main.bundleIdentifier else { return false }
+        return UserDefaults.standard.persistentDomain(forName: domain)?[DefaultsKey.nommoLightingBrightness] != nil
+    }
+
+    private static func fade(from start: Int, to end: Int, _ exchange: Exchange) throws {
+        for level in NommoLighting.fadeLevels(from: start, to: end) {
+            _ = try exchange(.writeBrightness(level))
+            Thread.sleep(forTimeInterval: NommoLighting.fadeStepInterval)
+        }
     }
 
     private func writeCurve(_ curve: NommoEQCurve, after delay: TimeInterval) {

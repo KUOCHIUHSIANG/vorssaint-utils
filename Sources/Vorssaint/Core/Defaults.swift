@@ -471,6 +471,8 @@ enum DefaultsKey {
     static let nommoEQPresets = "nommoEQPresets"
     // Put back after a power-up or a built-in EQ mode's color; the speakers can't report it.
     static let nommoLighting = "nommoLighting"
+    // Where fades return to; adopted from the speakers the first time.
+    static let nommoLightingBrightness = "nommoLightingBrightness"
     // System monitor — per-metric history graphs (each independently toggleable).
     static let monitorGraphCPU = "monitorGraphCPU"
     static let monitorGraphGPU = "monitorGraphGPU"
@@ -1749,6 +1751,7 @@ enum Defaults {
         DefaultsKey.panelShowNommo: true,
         DefaultsKey.nommoEQPresets: NommoEQPresetStore.defaultStorage,
         DefaultsKey.nommoLighting: NommoLighting.off.rawValue,
+        DefaultsKey.nommoLightingBrightness: NommoLighting.fullBrightness,
         DefaultsKey.panelNavigationEnabled: true,
         DefaultsKey.monitorGraphCPU: true,
         DefaultsKey.monitorGraphGPU: true,
