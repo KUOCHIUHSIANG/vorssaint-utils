@@ -117,15 +117,18 @@ enum NommoSupportTests {
         suite.expect(NommoCommand.writeBrightness(300).arguments == [0x01, 0x00, 0xFF]
                         && NommoCommand.readBrightness.arguments == [0x01, 0x00],
                      "brightness writes stay within 0 to 255")
-        let fadeOut = NommoLighting.fadeLevels(from: 255, to: 0)
-        let fadeIn = NommoLighting.fadeLevels(from: 0, to: 180)
-        suite.expect(fadeOut.count == NommoLighting.fadeSteps && fadeOut.last == 0 && fadeIn.last == 180,
-                     "a fade ends exactly on its target")
+        let grid = (0...100).map { Double($0) / 100 }
+        let fadeOut = grid.map { NommoLighting.fadeLevel(from: 255, to: 0, progress: $0) }
+        let fadeIn = grid.map { NommoLighting.fadeLevel(from: 0, to: 180, progress: $0) }
+        suite.expect(fadeOut.first == 255 && fadeOut.last == 0 && fadeIn.first == 0 && fadeIn.last == 180,
+                     "a fade starts and ends exactly on its levels")
         suite.expect(zip(fadeOut, fadeOut.dropFirst()).allSatisfy { $0 >= $1 }
                         && zip(fadeIn, fadeIn.dropFirst()).allSatisfy { $0 <= $1 },
                      "a fade only moves one way")
-        suite.expect(fadeOut[NommoLighting.fadeSteps / 2 - 1] < 255 / 2,
-                     "halfway through a fade out the level is under half, so it looks even to the eye")
+        suite.expect(fadeOut[50] < 255 / 2, "halfway through a fade out the level is under half, so it looks even")
+        suite.expect(fadeOut.filter { $0 > 0 && $0 <= 3 }.count <= 6,
+                     "a fade passes the coarse bottom levels quickly instead of lingering on them")
+        suite.expect(NommoLighting.fadeLevel(from: 255, to: 0, progress: 2) == 0, "progress past the end holds the target")
 
         // MARK: Standby and firmware
 

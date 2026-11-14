@@ -273,10 +273,21 @@ final class NommoService: ObservableObject {
         return UserDefaults.standard.persistentDomain(forName: domain)?[DefaultsKey.nommoLightingBrightness] != nil
     }
 
+    /// As many steps as the speakers take, each at the level its moment calls
+    /// for, so a slow reply delays one step instead of the whole fade.
     private static func fade(from start: Int, to end: Int, _ exchange: Exchange) throws {
-        for level in NommoLighting.fadeLevels(from: start, to: end) {
-            _ = try exchange(.writeBrightness(level))
-            Thread.sleep(forTimeInterval: NommoLighting.fadeStepInterval)
+        let begin = Date()
+        var written: Int?
+        while true {
+            let progress = min(1, Date().timeIntervalSince(begin) / NommoLighting.fadeDuration)
+            let level = NommoLighting.fadeLevel(from: start, to: end, progress: progress)
+            if level != written {
+                _ = try exchange(.writeBrightness(level))
+                written = level
+            } else {
+                Thread.sleep(forTimeInterval: 0.004)
+            }
+            if progress >= 1 { return }
         }
     }
 

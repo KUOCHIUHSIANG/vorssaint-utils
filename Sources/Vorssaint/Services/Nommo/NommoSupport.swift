@@ -358,25 +358,25 @@ enum NommoLighting: String, CaseIterable {
     static let connectSettle: TimeInterval = 5
 
     /// Turning off and on fades through the brightness, the way the speakers
-    /// fade on power-off and power-on, rather than cutting.
-    static let fadeSteps = 16
-    static let fadeStepInterval: TimeInterval = 0.05
+    /// fade on power-off and power-on, rather than cutting. A fade steps as
+    /// fast as the speakers answer (a brightness write takes about 11 ms, so
+    /// roughly 90 steps a second), each step placed by the time elapsed.
+    static let fadeDuration: TimeInterval = 1.0
+    /// Between linear and perceptual (2.2): dim enough steps to look even,
+    /// without lingering on the coarse 3, 2, 1 levels at the bottom.
+    static let fadeGamma = 1.6
     static let fullBrightness = 255
 
     static func clampedBrightness(_ level: Int) -> Int { min(max(level, 0), fullBrightness) }
 
-    /// Brightness steps from `start` to `end`, ending exactly on `end`. They are
-    /// even in perceived brightness (gamma 2.2), so a fade neither rushes at
-    /// the bright end nor lingers at the dim one.
-    static func fadeLevels(from start: Int, to end: Int, steps: Int = fadeSteps) -> [Int] {
-        let gamma = 2.2
-        func perceived(_ level: Int) -> Double { pow(Double(clampedBrightness(level)) / 255, 1 / gamma) }
-        let from = perceived(start), to = perceived(end)
-        guard steps > 0 else { return [clampedBrightness(end)] }
-        return (1...steps).map { step in
-            let share = from + (to - from) * Double(step) / Double(steps)
-            return Int((pow(share, gamma) * 255).rounded())
+    /// The brightness `progress` (0 to 1) of the way from `start` to `end`.
+    static func fadeLevel(from start: Int, to end: Int, progress: Double) -> Int {
+        func perceived(_ level: Int) -> Double {
+            pow(Double(clampedBrightness(level)) / Double(fullBrightness), 1 / fadeGamma)
         }
+        let share = min(max(progress, 0), 1)
+        let level = perceived(start) + (perceived(end) - perceived(start)) * share
+        return Int((pow(level, fadeGamma) * Double(fullBrightness)).rounded())
     }
 
     var commands: [NommoCommand] {
