@@ -10,7 +10,7 @@ protocol PanelOrderItem: RawRepresentable, CaseIterable, Hashable where RawValue
 /// stable identifiers persisted in the saved order and the collapsed set, so
 /// renaming a case would orphan a user's stored layout — keep them stable.
 enum PanelSectionID: String, CaseIterable, Identifiable, Hashable {
-    case keepAwake, brightness, mixer, system, network, disk, power, fanControl, utilities, controls,
+    case keepAwake, brightness, mixer, nommo, system, network, disk, power, fanControl, utilities, controls,
          toggles, wallpaper
 
     var id: String { rawValue }
@@ -21,6 +21,7 @@ enum PanelSectionID: String, CaseIterable, Identifiable, Hashable {
         case .keepAwake: return s.keepAwakeTitle
         case .brightness: return FeatureStrings.brightness(L10n.shared.language).pageTitle
         case .mixer: return s.mixerSection
+        case .nommo: return FeatureStrings.nommo(L10n.shared.language).title
         case .system: return s.systemSection
         case .network: return s.networkSection
         case .disk: return s.diskSection
@@ -38,6 +39,7 @@ enum PanelSectionID: String, CaseIterable, Identifiable, Hashable {
         case .keepAwake: return "moon.zzz.fill"
         case .brightness: return "display.2"
         case .mixer: return "speaker.wave.2"
+        case .nommo: return "hifispeaker.2.fill"
         case .system: return "cpu"
         case .network: return "network"
         case .disk: return "internaldrive"
@@ -58,6 +60,7 @@ enum PanelSectionID: String, CaseIterable, Identifiable, Hashable {
         case .keepAwake: return DefaultsKey.panelShowKeepAwake
         case .brightness: return DefaultsKey.panelShowBrightness
         case .mixer: return DefaultsKey.monitorShowMixer
+        case .nommo: return DefaultsKey.panelShowNommo
         case .system: return DefaultsKey.monitorShowSystem
         case .network: return DefaultsKey.monitorShowNetwork
         case .disk: return DefaultsKey.monitorShowDisk
@@ -82,6 +85,7 @@ enum PanelSectionID: String, CaseIterable, Identifiable, Hashable {
         case .keepAwake: return [.keepAwake]
         case .brightness: return [.brightness]
         case .mixer: return [.mixer, .audioPriority]
+        case .nommo: return [.nommo]
         case .system: return [.monitorCPU, .monitorGPU, .monitorMemory, .connectedDevices]
         case .network: return [.monitorNetwork]
         case .disk: return [.monitorDisk]
@@ -130,6 +134,10 @@ enum PanelLayout {
                 // New in 3.1.13: saved orders predate it, so it slots in at
                 // its canonical place instead of the end.
                 result.insert(id, at: keepAwakeIndex + 1)
+            } else if id == .nommo, let mixerIndex = result.firstIndex(of: .mixer) {
+                // Added by Neptater: saved orders predate it, so it joins the
+                // other sound controls instead of the end.
+                result.insert(id, at: mixerIndex + 1)
             } else {
                 result.append(id)
             }

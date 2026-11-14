@@ -382,6 +382,8 @@ if (( TEST )); then
         Sources/Vorssaint/Core/BluetoothSleepStrings.swift
         Sources/Vorssaint/Core/PermissionGuideStrings.swift
         Sources/Vorssaint/Core/FanControlStrings.swift
+        Sources/Vorssaint/Core/NommoStrings.swift
+        Sources/Vorssaint/Services/Nommo/NommoSupport.swift
         Sources/Vorssaint/Core/ConnectedDevicesStrings.swift
         Sources/Vorssaint/Services/FanControl/FanControlSupport.swift
         Sources/Vorssaint/Services/FanControl/FanControlResumeSupport.swift

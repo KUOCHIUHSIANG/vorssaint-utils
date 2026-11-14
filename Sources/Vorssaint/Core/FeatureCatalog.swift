@@ -22,7 +22,7 @@ enum AppFeature: String, CaseIterable {
     case clipboardHistory, pastePlain, finderCutPaste, finderRename, shelf, urlCleaner,
          diskImageInstaller
     // Sound
-    case mixer, soundOutputSwitcher, audioPriority, micMute, musicBlock
+    case mixer, soundOutputSwitcher, audioPriority, micMute, musicBlock, nommo
     // Energy and display
     case keepAwake, brightness, extraBrightness, bluetoothSleep
     // Tools
@@ -109,7 +109,7 @@ extension AppFeature {
         case .clipboardHistory, .pastePlain, .finderCutPaste, .finderRename, .shelf, .urlCleaner,
              .diskImageInstaller:
             return .clipboardFiles
-        case .mixer, .soundOutputSwitcher, .audioPriority, .micMute, .musicBlock:
+        case .mixer, .soundOutputSwitcher, .audioPriority, .micMute, .musicBlock, .nommo:
             return .sound
         case .keepAwake, .brightness, .extraBrightness, .bluetoothSleep:
             return .energyDisplay
@@ -167,6 +167,7 @@ extension AppFeature {
         case .audioPriority: return "list.number"
         case .micMute: return "mic.slash"
         case .musicBlock: return "music.note"
+        case .nommo: return "hifispeaker.2.fill"
         case .keepAwake: return "moon.zzz.fill"
         case .brightness: return "display.2"
         case .extraBrightness: return "sun.max.fill"
@@ -295,7 +296,7 @@ extension AppFeature {
              .cleaner, .uninstaller, .homebrew, .appUpdates, .screenshot, .cameraPreview, .scratchpad,
              .commandBar, .screenRecorder, .wallpaper, .killProcess, .portManager,
              .monitorCPU, .monitorGPU, .monitorMemory, .monitorNetwork, .monitorDisk, .monitorPower,
-             .connectedDevices, .fanControl:
+             .connectedDevices, .fanControl, .nommo:
             return []
         }
     }
@@ -391,6 +392,8 @@ extension AppFeature {
              .extraBrightness, .bluetoothSleep, .quickLauncher, .colorPicker, .micMute, .mediaTools,
              .scratchpad, .wallpaper, .monitorGPU, .monitorNetwork, .connectedDevices, .fanControl, .killProcess,
              .portManager,
+             // The speaker's control interface opens without a privacy prompt.
+             .nommo,
              // Each app gets the ordinary quit request it would from its own menu.
              .quitApps:
             return []
@@ -491,7 +494,7 @@ extension AppFeature {
              .connectedDevices:
             return true
         case .focusFollowsMouse, .scrollHorizontal, .scrollZoom, .linearScroll, .scrollSpeed, .diskImageInstaller, .audioPriority,
-             .wallpaper, .killProcess, .portManager, .fanControl, .notchMascot, .spacesOrder, .quitApps:
+             .wallpaper, .killProcess, .portManager, .fanControl, .notchMascot, .spacesOrder, .quitApps, .nommo:
             return false
         }
     }

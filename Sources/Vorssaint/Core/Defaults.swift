@@ -465,6 +465,10 @@ enum DefaultsKey {
     // automatic fan control before this marker can be cleared.
     static let fanControlRecoveryNeeded = "fanControlRecoveryNeeded"
     static let fanControlHelperVersion = "fanControlHelperVersion"
+    // Nommo V2 speakers: the panel section, and the editable EQ presets (JSON).
+    // The presets live here because a built-in mode resets the speaker's own bands.
+    static let panelShowNommo = "panelShowNommo"
+    static let nommoEQPresets = "nommoEQPresets"
     // System monitor — per-metric history graphs (each independently toggleable).
     static let monitorGraphCPU = "monitorGraphCPU"
     static let monitorGraphGPU = "monitorGraphGPU"
@@ -1740,6 +1744,8 @@ enum Defaults {
         DefaultsKey.fanControlResumeConfiguration: "",
         DefaultsKey.fanControlRecoveryNeeded: false,
         DefaultsKey.fanControlHelperVersion: "",
+        DefaultsKey.panelShowNommo: true,
+        DefaultsKey.nommoEQPresets: NommoEQPresetStore.defaultStorage,
         DefaultsKey.panelNavigationEnabled: true,
         DefaultsKey.monitorGraphCPU: true,
         DefaultsKey.monitorGraphGPU: true,

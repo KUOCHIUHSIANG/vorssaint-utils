@@ -50,6 +50,9 @@ struct GeneralToolSettings: View {
                 case .musicBlocking:
                     MusicBlockingSettings()
                         .settingsSectionAnchor(.musicBlocking, cornerRadius: 16)
+                case .nommo:
+                    NommoSettings()
+                        .settingsSectionAnchor(.nommo, cornerRadius: 16)
                 default:
                     EmptyView()
                 }

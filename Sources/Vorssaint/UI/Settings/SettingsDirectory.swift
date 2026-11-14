@@ -325,6 +325,13 @@ enum SettingsDirectory {
                                         (.mixer, [s.mixerSection]),
                                         (.soundOutputSwitcher, [s.soundOutputSwitcherTitle]),
                                         (.audioPriority, [s.audioPrioritySection]),
+                                        (.nommo, [FeatureStrings.nommo(language).title,
+                                                  FeatureStrings.nommo(language).showInPanel,
+                                                  FeatureStrings.nommo(language).subwoofer,
+                                                  FeatureStrings.nommo(language).equalizer,
+                                                  FeatureStrings.nommo(language).editCurve,
+                                                  FeatureStrings.nommo(language).autoStandby,
+                                                  FeatureStrings.nommo(language).standbyDelay]),
                                         (.keepAwake, [s.globalHotkeySection, s.hotkeyToggle]),
                                        ]),
                 // Searching any feature name lands here even when the feature

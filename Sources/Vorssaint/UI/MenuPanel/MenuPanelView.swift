@@ -85,6 +85,7 @@ struct MenuPanelView: View {
     @AppStorage(DefaultsKey.panelShowControls) private var showControls = true
     @AppStorage(DefaultsKey.panelShowToggles) private var showToggles = true
     @AppStorage(DefaultsKey.panelShowWallpaper) private var showWallpaper = true
+    @AppStorage(DefaultsKey.panelShowNommo) private var showNommo = true
     @AppStorage(DefaultsKey.panelSectionOrder) private var sectionOrderRaw = ""
     @State private var navigableContentHeight: CGFloat = 0
     @State private var metricContentHeight: CGFloat = 0
@@ -295,6 +296,7 @@ struct MenuPanelView: View {
         case .keepAwake: return 250
         case .brightness: return 140
         case .mixer: return 250
+        case .nommo: return 150
         case .system: return 460
         case .network: return 190
         case .disk: return 360
@@ -327,6 +329,7 @@ struct MenuPanelView: View {
         case .keepAwake: KeepAwakeCard(collapsible: collapsible)
         case .brightness: if showBrightness { BrightnessSection(collapsible: collapsible) }
         case .mixer: if showMixer { mixerOrPrioritySection(collapsible: collapsible) }
+        case .nommo: if showNommo { NommoSection(collapsible: collapsible) }
         case .system:
             if showSystem {
                 SystemSection(collapsible: collapsible) {
@@ -364,7 +367,8 @@ struct MenuPanelView: View {
     /// what keeps the tabs refreshing when Settings flips one of them.
     private func isSectionVisible(_ id: PanelSectionID) -> Bool {
         _ = (showKeepAwake, showBrightness, brightnessEnabled, showMixer, showSystem, showNetwork,
-             showDisk, showPower, showFanControl, showUtilities, showControls, showToggles, showWallpaper)
+             showDisk, showPower, showFanControl, showUtilities, showControls, showToggles, showWallpaper,
+             showNommo)
         return PanelLayout.isVisibleInPanel(id)
     }
 
