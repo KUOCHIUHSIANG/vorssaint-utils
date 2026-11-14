@@ -45,6 +45,16 @@ struct NommoSection: View {
                     }
                     editorDisclosure
                     Divider()
+                    HStack {
+                        Text(strings.lighting)
+                            .font(.system(size: 11.5, weight: .medium))
+                        Spacer(minLength: 8)
+                        NommoLightingPicker()
+                            .controlSize(.small)
+                            .frame(width: 150)
+                    }
+                    .help(strings.lightingCaption)
+                    Divider()
                     standby
                     if service.failure != nil {
                         Text(strings.noReply)

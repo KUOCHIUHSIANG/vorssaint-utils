@@ -97,6 +97,12 @@ enum NommoCommand: Equatable {
     case writeAutoStandby(Bool)
     case readStandbyDelay
     case writeStandbyDelay(NommoStandbyDelay)
+    /// Stops the built-in animation so the LEDs show frames sent by the host.
+    case enterFrameMode
+    /// The same color on all twelve LEDs; black turns the lighting off.
+    case fillFrame(red: UInt8, green: UInt8, blue: UInt8)
+    /// Leaves frame mode; the built-in spectrum cycle continues.
+    case resumeAnimation
 
     var commandClass: UInt8 {
         switch self {
@@ -104,6 +110,7 @@ enum NommoCommand: Equatable {
         case .readSubwoofer, .writeSubwoofer, .readEQMode, .selectBuiltIn, .readEQCurve, .writeEQCurve:
             return 0x08
         case .readAutoStandby, .writeAutoStandby, .readStandbyDelay, .writeStandbyDelay: return 0x07
+        case .enterFrameMode, .fillFrame, .resumeAnimation: return 0x0F
         }
     }
 
@@ -120,6 +127,8 @@ enum NommoCommand: Equatable {
         case .writeAutoStandby: return 0x08
         case .readStandbyDelay: return 0x83
         case .writeStandbyDelay: return 0x03
+        case .enterFrameMode, .resumeAnimation: return 0x02
+        case .fillFrame: return 0x03
         }
     }
 
@@ -127,6 +136,8 @@ enum NommoCommand: Equatable {
         switch self {
         case .readFirmware: return 0x03
         case .readEQCurve, .writeEQCurve: return 0x0B
+        case .enterFrameMode, .resumeAnimation: return 0x06
+        case .fillFrame: return 0x29
         default: return 0x02
         }
     }
@@ -138,6 +149,10 @@ enum NommoCommand: Equatable {
         case let .writeEQCurve(curve): return [0x00] + curve.bytes
         case let .writeAutoStandby(isOn): return [0x00, isOn ? 0x01 : 0x00]
         case let .writeStandbyDelay(delay): return delay.bytes
+        case .enterFrameMode: return [0x00, 0x00, 0x08, 0x00, 0x01]
+        case let .fillFrame(red, green, blue):
+            return [0x00, 0x00, 0x00, 0x00, 0x0B] + Array([[UInt8]](repeating: [red, green, blue], count: 12).joined())
+        case .resumeAnimation: return [0x00, 0x00, 0x00]
         default: return []
         }
     }
@@ -318,5 +333,26 @@ enum NommoStandbyDelay: Int, CaseIterable {
     init?(bytes: [UInt8]) {
         guard bytes.count >= 2 else { return nil }
         self.init(rawValue: Int(bytes[0]) << 8 | Int(bytes[1]))
+    }
+}
+
+/// The lighting Neptater keeps the speakers on. They can't report theirs, and
+/// both powering up and a built-in EQ mode replace it (Game turns them green,
+/// Music red, Movie yellow, and that color stays), so Neptater puts it back.
+enum NommoLighting: String, CaseIterable {
+    case off, spectrum
+
+    /// How long a built-in mode's color shows before the lighting returns.
+    /// The strings say 3 seconds.
+    static let eqColorHold: TimeInterval = 3
+    /// The speakers reset their lighting during their first seconds on USB (up
+    /// to 2.5 s after power-on); frames sent before that are lost.
+    static let connectSettle: TimeInterval = 5
+
+    var commands: [NommoCommand] {
+        switch self {
+        case .off: return [.enterFrameMode, .fillFrame(red: 0, green: 0, blue: 0)]
+        case .spectrum: return [.resumeAnimation]
+        }
     }
 }

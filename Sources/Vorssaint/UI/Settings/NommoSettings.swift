@@ -30,6 +30,11 @@ struct NommoSettings: View {
                 Divider()
                 curveEditor
                 Divider()
+                SettingsRow(symbol: nil, title: strings.lighting, caption: strings.lightingCaption) {
+                    NommoLightingPicker()
+                        .frame(width: 200)
+                }
+                Divider()
                 SettingsRow(symbol: nil, title: strings.autoStandby, caption: strings.autoStandbyCaption) {
                     Toggle(strings.autoStandby, isOn: Binding(get: { service.state.autoStandby ?? false },
                                                                set: { service.setAutoStandby($0) }))

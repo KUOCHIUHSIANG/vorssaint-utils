@@ -37,10 +37,11 @@ enum NommoSupportTests {
         let every: [NommoCommand] = [
             .readFirmware, .readSubwoofer, .writeSubwoofer(1), .readEQMode, .selectBuiltIn(.game), .readEQCurve,
             .writeEQCurve(.flat), .readAutoStandby, .writeAutoStandby(true), .readStandbyDelay,
-            .writeStandbyDelay(.fifteen),
+            .writeStandbyDelay(.fifteen), .enterFrameMode, .fillFrame(red: 0, green: 0, blue: 0), .resumeAnimation,
         ]
         let known: Set<[UInt8]> = [[0x00, 0x87], [0x08, 0x87], [0x08, 0x07], [0x08, 0x82], [0x08, 0x02],
-                                   [0x08, 0x84], [0x08, 0x04], [0x07, 0x88], [0x07, 0x08], [0x07, 0x83], [0x07, 0x03]]
+                                   [0x08, 0x84], [0x08, 0x04], [0x07, 0x88], [0x07, 0x08], [0x07, 0x83], [0x07, 0x03],
+                                   [0x0F, 0x02], [0x0F, 0x03]]
         suite.expect(Set(every.map { [$0.commandClass, $0.commandID] }) == known,
                      "Neptater sends only commands confirmed on the speaker")
         suite.expect(!every.contains { $0.commandClass == 0x08 && $0.commandID == 0x0A },
@@ -95,6 +96,23 @@ enum NommoSupportTests {
         suite.expect(!NommoEQPresetStore.encode(presets).contains("flat"), "flat is never saved")
         suite.expect(NommoEQPresetStore.decode(NommoEQPresetStore.defaultStorage) == presets,
                      "the registered default holds the suggestions")
+
+        // MARK: Lighting
+
+        let off = NommoProtocol.request(.fillFrame(red: 0, green: 0, blue: 0))
+        suite.expect(off[6] == 0x29 && Array(off[9..<14]) == [0x00, 0x00, 0x00, 0x00, 0x0B]
+                        && off[14..<50].allSatisfy { $0 == 0 },
+                     "an off frame is twelve black LEDs after the frame header")
+        let red = NommoCommand.fillFrame(red: 0xFF, green: 0x10, blue: 0x00).arguments
+        suite.expect(red.count == 5 + 36 && Array(red[5..<8]) == [0xFF, 0x10, 0x00] && Array(red[38..<41]) == [0xFF, 0x10, 0x00],
+                     "a frame repeats the color for all twelve LEDs")
+        suite.expect(NommoLighting.off.commands == [.enterFrameMode, .fillFrame(red: 0, green: 0, blue: 0)],
+                     "off stops the animation and shows a black frame")
+        suite.expect(NommoLighting.spectrum.commands == [.resumeAnimation], "spectrum resumes the built-in cycle")
+        suite.expect(NommoCommand.resumeAnimation.arguments == [0x00, 0x00, 0x00]
+                        && NommoCommand.enterFrameMode.arguments == [0x00, 0x00, 0x08, 0x00, 0x01],
+                     "frame mode and the animation use the arguments confirmed on the speaker")
+        suite.expect(NommoLighting.eqColorHold == 3, "the strings promise a built-in mode's color shows for 3 seconds")
 
         // MARK: Standby and firmware
 

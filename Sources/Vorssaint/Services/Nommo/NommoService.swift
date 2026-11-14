@@ -13,8 +13,10 @@ import os
 /// so every write is read back, and the panel shows what the speaker reports.
 ///
 /// The speaker keeps its subwoofer level, EQ and standby settings while off,
-/// so connecting only reads them. Nothing polls: state refreshes when the
-/// panel or Settings shows it.
+/// so connecting only reads them. Its lighting it can neither keep nor report,
+/// so Neptater stores the chosen lighting and puts it back after a power-up or
+/// a built-in EQ mode's color. Nothing polls: state refreshes when the panel or
+/// Settings shows it.
 final class NommoService: ObservableObject {
     static let shared = NommoService()
 
@@ -34,6 +36,7 @@ final class NommoService: ObservableObject {
     @Published private(set) var state = State()
     @Published private(set) var failure: Failure?
     @Published private(set) var presets: [NommoEQPreset: NommoEQCurve]
+    @Published private(set) var lighting: NommoLighting
 
     private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "neptater", category: "nommo")
     private static let readAttempts = 3
@@ -46,9 +49,12 @@ final class NommoService: ObservableObject {
     /// Touched only on the main thread; the queue gets the value it needs.
     private var device: IOHIDDevice?
     private var pendingCurve: DispatchWorkItem?
+    private var pendingLighting: DispatchWorkItem?
 
     private init() {
         presets = NommoEQPresetStore.decode(UserDefaults.standard.string(forKey: DefaultsKey.nommoEQPresets))
+        lighting = UserDefaults.standard.string(forKey: DefaultsKey.nommoLighting)
+            .flatMap(NommoLighting.init(rawValue:)) ?? .off
     }
 
     var selection: NommoEQSelection { NommoEQSelection(state: state.eq, presets: presets) }
@@ -83,6 +89,8 @@ final class NommoService: ObservableObject {
     private func stop() {
         pendingCurve?.cancel()
         pendingCurve = nil
+        pendingLighting?.cancel()
+        pendingLighting = nil
         if let manager {
             IOHIDManagerRegisterDeviceMatchingCallback(manager, nil, nil)
             IOHIDManagerRegisterDeviceRemovalCallback(manager, nil, nil)
@@ -100,6 +108,7 @@ final class NommoService: ObservableObject {
         isConnected = true
         failure = nil
         refresh()
+        restoreLighting(after: NommoLighting.connectSettle)
     }
 
     private func deviceDisappeared(_ gone: IOHIDDevice) {
@@ -168,6 +177,8 @@ final class NommoService: ObservableObject {
                 _ = try exchange(.selectBuiltIn(mode))
                 return try Self.readState(exchange)
             }
+            // The mode's color shows for a moment, then the chosen lighting returns.
+            restoreLighting(after: NommoLighting.eqColorHold)
         case let .preset(preset):
             guard let curve = presets[preset] else { return }
             writeCurve(curve, after: 0)
@@ -205,6 +216,26 @@ final class NommoService: ObservableObject {
         }
     }
 
+    func setLighting(_ lighting: NommoLighting) {
+        self.lighting = lighting
+        UserDefaults.standard.set(lighting.rawValue, forKey: DefaultsKey.nommoLighting)
+        restoreLighting(after: 0)
+    }
+
+    private func restoreLighting(after delay: TimeInterval) {
+        pendingLighting?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            let commands = self.lighting.commands
+            self.perform { exchange in
+                for command in commands { _ = try exchange(command) }
+                return nil
+            }
+        }
+        pendingLighting = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    }
+
     private func writeCurve(_ curve: NommoEQCurve, after delay: TimeInterval) {
         pendingCurve?.cancel()
         let work = DispatchWorkItem { [weak self] in
@@ -229,8 +260,8 @@ final class NommoService: ObservableObject {
     }
 
     /// Runs `work` on the serial queue with the current device and publishes
-    /// the state it returns, or the failure.
-    private func perform(_ work: @escaping (Exchange) throws -> State) {
+    /// the state it returns (nil leaves it as it is), or the failure.
+    private func perform(_ work: @escaping (Exchange) throws -> State?) {
         guard let device else { return }
         queue.async { [weak self] in
             let result = Result { try work { try Self.exchange($0, with: device) } }
@@ -238,7 +269,7 @@ final class NommoService: ObservableObject {
                 guard let self, self.device.map({ CFEqual($0, device) }) == true else { return }
                 switch result {
                 case let .success(state):
-                    self.state = state
+                    if let state { self.state = state }
                     self.failure = nil
                 case let .failure(error):
                     Self.log.error("speaker exchange failed: \(String(describing: error), privacy: .public)")

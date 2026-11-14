@@ -267,3 +267,21 @@ struct NommoStandbyDelayPicker: View {
         .disabled(service.state.autoStandby != true)
     }
 }
+
+/// The lighting Neptater keeps the speakers on.
+struct NommoLightingPicker: View {
+    @ObservedObject private var l10n = L10n.shared
+    @ObservedObject private var service = NommoService.shared
+
+    private var strings: NommoFeatureStrings { FeatureStrings.nommo(l10n.language) }
+
+    var body: some View {
+        Picker(strings.lighting, selection: Binding(get: { service.lighting }, set: { service.setLighting($0) })) {
+            ForEach(NommoLighting.allCases, id: \.self) { lighting in
+                Text(strings.lightingName(lighting)).tag(lighting)
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+    }
+}
