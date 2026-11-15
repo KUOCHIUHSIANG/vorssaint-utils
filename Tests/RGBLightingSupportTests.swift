@@ -114,6 +114,21 @@ enum RGBLightingSupportTests {
                         && rightSpeakers[0] == RGBColor(hue: base - RGBLighting.waveSpread),
                      "left to right, the monitor is one color between the left speaker and the right")
 
+        // MARK: Speed
+
+        let clock = RGBLightingClock()
+        suite.expect(clock.effectTime(at: 10) == 10, "at the usual speed, effects run on the clock itself")
+        clock.setSpeed(2, at: 10)
+        suite.expect(clock.effectTime(at: 10) == 10 && clock.effectTime(at: 12) == 14,
+                     "a faster speed carries on from where the effect is, without a jump")
+        clock.setSpeed(0.01, at: 12)
+        suite.expect(clock.effectTime(at: 12) == 14 && clock.effectTime(at: 16) == 15,
+                     "the speed never drops below a quarter")
+        suite.expect(RGBLighting.clampedSpeed(.nan) == 1 && RGBLighting.clampedSpeed(9) == 3, "the speed stays in range")
+        let quick = RGBLightingProgram(settings(.cycle), start: nil, began: 0)
+        suite.expect(quick.frame(at: 5, effectTime: 7.5, lights: nommo).colors[0] == RGBColor(hue: RGBLighting.rainbowHue(at: 7.5)),
+                     "effects follow the effect time, while fades keep to the clock")
+
         // MARK: Effects
 
         suite.expect(RGBLighting.breath(at: 0) == 0 && abs(RGBLighting.breath(at: RGBLighting.breathPeriod / 2) - 1) < 1e-9,

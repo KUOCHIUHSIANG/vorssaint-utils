@@ -338,6 +338,7 @@ enum SettingsDirectory {
                                                         FeatureStrings.rgbLighting(language).direction,
                                                         FeatureStrings.rgbLighting(language).color,
                                                         FeatureStrings.rgbLighting(language).brightness,
+                                                        FeatureStrings.rgbLighting(language).speed,
                                                         FeatureStrings.rgbLighting(language).devices]),
                                         (.keepAwake, [s.globalHotkeySection, s.hotkeyToggle]),
                                        ]),

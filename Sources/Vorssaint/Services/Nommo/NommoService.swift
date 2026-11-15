@@ -370,7 +370,9 @@ final class NommoService: ObservableObject {
     }
 
     private func currentFrame() -> (colors: [RGBColor], moving: Bool) {
-        program?.frame(at: ProcessInfo.processInfo.systemUptime, level: drawingLevel, lights: RGBDesk.nommo)
+        let now = ProcessInfo.processInfo.systemUptime
+        return program?.frame(at: now, effectTime: RGBLightingClock.shared.effectTime(at: now), level: drawingLevel,
+                              lights: RGBDesk.nommo)
             ?? (Array(repeating: .black, count: NommoLighting.ledCount), false)
     }
 

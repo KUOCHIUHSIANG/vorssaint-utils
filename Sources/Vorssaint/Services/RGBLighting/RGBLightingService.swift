@@ -23,8 +23,10 @@ final class RGBLightingService: ObservableObject {
                 .flatMap(RGBWaveDirection.init(rawValue:)) ?? .down,
             color: defaults.string(forKey: DefaultsKey.rgbLightingColor).flatMap(RGBColor.init(hex:))
                 ?? RGBLighting.defaultColor,
-            level: RGBLighting.levelRange.contains(level) ? level : RGBLighting.levelRange.upperBound)
+            level: RGBLighting.levelRange.contains(level) ? level : RGBLighting.levelRange.upperBound,
+            speed: RGBLighting.clampedSpeed(defaults.double(forKey: DefaultsKey.rgbLightingSpeed)))
         customColors = RGBLighting.decodeCustomColors(defaults.string(forKey: DefaultsKey.rgbLightingCustomColors))
+        RGBLightingClock.shared.setSpeed(settings.speed, at: ProcessInfo.processInfo.systemUptime)
     }
 
     /// Whether the devices show this lighting; when off, they keep their own.
@@ -66,6 +68,15 @@ final class RGBLightingService: ObservableObject {
         UserDefaults.standard.set(percent, forKey: DefaultsKey.rgbLightingLevel)
         NommoService.shared.lightingLevelChanged()
         MSIMonitorService.shared.lightingLevelChanged()
+    }
+
+    /// The moving modes pick it up on their next frame, carrying on from where
+    /// they are.
+    func setSpeed(_ speed: Double) {
+        let speed = RGBLighting.clampedSpeed(speed)
+        settings.speed = speed
+        UserDefaults.standard.set(speed, forKey: DefaultsKey.rgbLightingSpeed)
+        RGBLightingClock.shared.setSpeed(speed, at: ProcessInfo.processInfo.systemUptime)
     }
 
     /// Adds a color after the others and returns its place, or nil when full.

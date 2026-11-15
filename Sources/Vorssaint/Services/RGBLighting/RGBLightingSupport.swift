@@ -139,6 +139,8 @@ struct RGBLightingChoice: Equatable {
     var color: RGBColor
     /// The brightness slider, in percent.
     var level: Int
+    /// How fast the moving modes move, 1 being the periods below.
+    var speed: Double = RGBLighting.defaultSpeed
 }
 
 enum RGBLighting {
@@ -170,6 +172,14 @@ enum RGBLighting {
     static let lightningFade: TimeInterval = 0.25
     /// The brightness slider runs from 5 % (dim but on) to 100 %.
     static let levelRange = 5...100
+    /// The speed slider runs from a quarter of the speed to three times it.
+    static let speedRange = 0.25...3.0
+    static let defaultSpeed = 1.0
+
+    static func clampedSpeed(_ speed: Double) -> Double {
+        guard speed.isFinite else { return defaultSpeed }
+        return min(max(speed, speedRange.lowerBound), speedRange.upperBound)
+    }
     static let defaultColor = RGBColor(red: 255, green: 255, blue: 255)
     /// White, red, orange, yellow, green, cyan, blue, purple, pink.
     static let swatches: [RGBColor] = [
@@ -268,6 +278,34 @@ enum RGBLighting {
     }
 }
 
+/// The time the moving modes run on: the monotonic clock at the chosen
+/// speed. A change of speed leaves every effect where it is and only changes
+/// how fast it goes on from there, and every device reads this one clock, so
+/// they stay in step.
+final class RGBLightingClock {
+    static let shared = RGBLightingClock()
+
+    private let lock = NSLock()
+    private var anchor: TimeInterval = 0
+    private var effectAtAnchor: TimeInterval = 0
+    private var speed = RGBLighting.defaultSpeed
+
+    /// Effect time for `time`, seconds on the monotonic clock.
+    func effectTime(at time: TimeInterval) -> TimeInterval {
+        lock.lock()
+        defer { lock.unlock() }
+        return effectAtAnchor + (time - anchor) * speed
+    }
+
+    func setSpeed(_ newSpeed: Double, at time: TimeInterval) {
+        lock.lock()
+        defer { lock.unlock() }
+        effectAtAnchor += (time - anchor) * speed
+        anchor = time
+        speed = RGBLighting.clampedSpeed(newSpeed)
+    }
+}
+
 /// What each LED shows over time on the way to the chosen lighting: from black
 /// or from the colors already showing (a built-in EQ mode's, or the last
 /// frame), cross-fading into the target and then holding or moving with it.
@@ -291,13 +329,15 @@ struct RGBLightingProgram: Equatable {
     }
 
     /// The frame for `time` at brightness factor `level`, one color per light,
-    /// and whether later frames will differ.
-    func frame(at time: TimeInterval, level: Double = 1,
+    /// and whether later frames will differ. Fades run on `time`; the effects
+    /// run on `effectTime` (see `RGBLightingClock`), `time` itself by default.
+    func frame(at time: TimeInterval, effectTime: TimeInterval? = nil, level: Double = 1,
                lights: [RGBLightPosition]) -> (colors: [RGBColor], moving: Bool) {
         let fade = max(0, time - began) / RGBLighting.fadeDuration
         let from = start?.count == lights.count ? start : nil
+        let effect = effectTime ?? time
         let colors = lights.indices.map { index -> RGBColor in
-            let goal = target(at: time, light: lights[index]).scaled(level)
+            let goal = target(at: effect, light: lights[index]).scaled(level)
             guard fade < 1 else { return goal }
             guard let from else { return goal.scaled(RGBLighting.fadeInFactor(fade)) }
             if mode == .off { return from[index].scaled(RGBLighting.fadeOutFactor(fade)) }

@@ -479,6 +479,8 @@ enum DefaultsKey {
     static let rgbLightingDirection = "rgbLightingDirection"
     static let rgbLightingColor = "rgbLightingColor"
     static let rgbLightingLevel = "rgbLightingLevel"
+    // How fast the moving modes go, as a multiple of their usual pace.
+    static let rgbLightingSpeed = "rgbLightingSpeed"
     static let rgbLightingCustomColors = "rgbLightingCustomColors"
     // The MSI monitor's own lighting report, read before Neptater drew over it,
     // to hand back on quit. One monitor's state, so not registered or backed up.
@@ -1766,6 +1768,7 @@ enum Defaults {
         DefaultsKey.rgbLightingDirection: RGBWaveDirection.down.rawValue,
         DefaultsKey.rgbLightingColor: RGBLighting.defaultColor.hex,
         DefaultsKey.rgbLightingLevel: RGBLighting.levelRange.upperBound,
+        DefaultsKey.rgbLightingSpeed: RGBLighting.defaultSpeed,
         DefaultsKey.rgbLightingCustomColors: "",
         DefaultsKey.panelNavigationEnabled: true,
         DefaultsKey.monitorGraphCPU: true,

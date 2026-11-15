@@ -244,8 +244,9 @@ final class MSIMonitorService: ObservableObject {
             stopFrameTimer()
             return
         }
-        let (colors, moving) = program.frame(at: ProcessInfo.processInfo.systemUptime, level: drawingLevel,
-                                             lights: RGBDesk.msiMonitor)
+        let now = ProcessInfo.processInfo.systemUptime
+        let (colors, moving) = program.frame(at: now, effectTime: RGBLightingClock.shared.effectTime(at: now),
+                                             level: drawingLevel, lights: RGBDesk.msiMonitor)
         if colors != drawnColors {
             let frame = MSIMonitorProtocol.frame(colors)
             let sent = IOHIDDeviceSetReport(device, kIOHIDReportTypeFeature, CFIndex(MSIMonitorProtocol.frameReportID),

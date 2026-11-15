@@ -4,8 +4,8 @@
 import SwiftUI
 
 /// Panel section for the lighting of every RGB device at once: the mode, its
-/// direction and color where it takes one, the brightness, and which devices
-/// are there to show it.
+/// direction and color where it takes one, the brightness, the speed of the
+/// moving modes, and which devices are there to show it.
 struct RGBLightingSection: View {
     @ObservedObject private var l10n = L10n.shared
     @ObservedObject private var service = RGBLightingService.shared
@@ -44,6 +44,11 @@ struct RGBLightingSection: View {
                 }
                 if service.settings.mode != .off {
                     RGBLightingLevelSlider()
+                        .controlSize(.small)
+                        .font(.system(size: 10.5))
+                }
+                if service.settings.mode.moves {
+                    RGBLightingSpeedSlider()
                         .controlSize(.small)
                         .font(.system(size: 10.5))
                 }

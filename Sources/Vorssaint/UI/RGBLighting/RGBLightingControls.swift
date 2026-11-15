@@ -182,6 +182,33 @@ struct RGBLightingLevelSlider: View {
     }
 }
 
+/// How fast the moving modes go, from a quarter of their pace to three times
+/// it, on a scale where each step multiplies the speed alike.
+struct RGBLightingSpeedSlider: View {
+    @ObservedObject private var l10n = L10n.shared
+    @ObservedObject private var service = RGBLightingService.shared
+
+    private var strings: RGBLightingFeatureStrings { FeatureStrings.rgbLighting(l10n.language) }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "tortoise.fill")
+                .foregroundStyle(.secondary)
+            Slider(value: Binding(get: { log2(service.settings.speed) }, set: { service.setSpeed(pow(2, $0)) }),
+                   in: log2(RGBLighting.speedRange.lowerBound)...log2(RGBLighting.speedRange.upperBound))
+                .accessibilityLabel(strings.speed)
+                .accessibilityValue(String(format: "%.1f×", service.settings.speed))
+            Image(systemName: "hare.fill")
+                .foregroundStyle(.secondary)
+            Text(String(format: "%.1f×", service.settings.speed))
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+                .frame(minWidth: 34, alignment: .trailing)
+        }
+        .help(strings.speed)
+    }
+}
+
 /// Adding a color: "+" puts a new color after the others and opens the system
 /// color panel on it; the color and the lights follow the panel live, and
 /// closing the panel keeps it, unless it repeats a color already there. Kept

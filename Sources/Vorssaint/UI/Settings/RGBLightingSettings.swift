@@ -38,6 +38,12 @@ struct RGBLightingSettings: View {
                         .frame(width: 240)
                 }
             }
+            if service.settings.mode.moves {
+                SettingsRow(symbol: nil, title: strings.speed) {
+                    RGBLightingSpeedSlider()
+                        .frame(width: 280)
+                }
+            }
             Divider()
             SettingsRow(symbol: nil, title: strings.devices) {
                 RGBLightingDeviceList()
