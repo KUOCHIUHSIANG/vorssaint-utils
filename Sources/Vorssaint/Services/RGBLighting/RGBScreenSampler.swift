@@ -38,6 +38,9 @@ final class RGBScreenSampler: NSObject, ObservableObject {
     private var sampledAt: TimeInterval?
     // Main thread.
     private var stream: SCStream?
+    /// The display being watched and its size, to tell a real change of
+    /// screens from the many notices that change nothing for it.
+    private var watched: (id: CGDirectDisplayID, size: CGSize)?
     private var wanted = false
     private var starting = false
     private var observers: [NSObjectProtocol] = []
@@ -60,7 +63,7 @@ final class RGBScreenSampler: NSObject, ObservableObject {
             observers.forEach { NotificationCenter.default.removeObserver($0) }
             observers.forEach { NSWorkspace.shared.notificationCenter.removeObserver($0) }
             observers = []
-            stop()
+            stop(keepingColors: false)
             status = .idle
         }
     }
@@ -71,16 +74,19 @@ final class RGBScreenSampler: NSObject, ObservableObject {
     }
 
     private func observe() {
-        let restart: (Notification) -> Void = { [weak self] _ in
-            guard let self, self.wanted else { return }
-            self.stop()
-            self.start()
-        }
         observers = [
+            // Going full screen and back sends these too, with nothing changed
+            // for the watched display; restarting then made the lights blink.
             NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification,
-                                                   object: nil, queue: .main, using: restart),
+                                                   object: nil, queue: .main) { [weak self] _ in
+                guard let self, self.wanted, self.stream != nil, self.watchedDisplayChanged() else { return }
+                self.restart(because: "the screens changed")
+            },
             NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification,
-                                                              object: nil, queue: .main, using: restart),
+                                                              object: nil, queue: .main) { [weak self] _ in
+                guard let self, self.wanted else { return }
+                self.restart(because: "the Mac woke")
+            },
             // Permission granted in System Settings shows up when the app comes back.
             NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification,
                                                    object: nil, queue: .main) { [weak self] _ in
@@ -88,6 +94,24 @@ final class RGBScreenSampler: NSObject, ObservableObject {
                 self.start()
             },
         ]
+    }
+
+    /// Starts over on a new stream, keeping the last colors meanwhile, so the
+    /// lights carry on from them instead of dropping to black.
+    private func restart(because reason: String) {
+        Self.log.notice("restarting the capture: \(reason, privacy: .public)")
+        stop(keepingColors: true)
+        start()
+    }
+
+    /// Whether the watched display is gone, or another took its place, or
+    /// it changed size.
+    private func watchedDisplayChanged() -> Bool {
+        guard let watched else { return true }
+        guard let screen = Self.lightedScreen(),
+              let id = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
+        else { return true }
+        return id != watched.id || screen.frame.size != watched.size
     }
 
     private func start() {
@@ -98,13 +122,16 @@ final class RGBScreenSampler: NSObject, ObservableObject {
         Task { @MainActor [weak self] in await self?.startStream() }
     }
 
-    private func stop() {
+    private func stop(keepingColors: Bool) {
         let running = stream
         stream = nil
-        lock.lock()
-        sample = nil
-        lock.unlock()
-        queue.async { [weak self] in self?.sampledAt = nil }
+        watched = nil
+        if !keepingColors {
+            lock.lock()
+            sample = nil
+            lock.unlock()
+            queue.async { [weak self] in self?.sampledAt = nil }
+        }
         if let running { Task { try? await running.stopCapture() } }
     }
 
@@ -137,6 +164,10 @@ final class RGBScreenSampler: NSObject, ObservableObject {
                 return
             }
             self.stream = stream
+            if let screen = Self.lightedScreen(),
+               let id = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID {
+                watched = (id, screen.frame.size)
+            }
             status = .running
         } catch {
             Self.log.error("screen capture failed: \(String(describing: error), privacy: .public)")
@@ -155,14 +186,21 @@ final class RGBScreenSampler: NSObject, ObservableObject {
     /// The display with the lights on its back: the MSI monitor by name, or
     /// else the first one that isn't built in.
     private static func lightedDisplay(in content: SCShareableContent) -> SCDisplay? {
-        let named = NSScreen.screens.first {
-            $0.localizedName.localizedCaseInsensitiveContains("MSI")
-                || $0.localizedName.localizedCaseInsensitiveContains("274URDFW")
-        }
-        let namedID = named?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
-        return content.displays.first { $0.displayID == namedID }
+        let id = lightedScreen()?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
+        return content.displays.first { $0.displayID == id }
             ?? content.displays.first { CGDisplayIsBuiltin($0.displayID) == 0 }
             ?? content.displays.first
+    }
+
+    private static func lightedScreen() -> NSScreen? {
+        func number(_ screen: NSScreen) -> CGDirectDisplayID? {
+            screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
+        }
+        return NSScreen.screens.first {
+            $0.localizedName.localizedCaseInsensitiveContains("MSI")
+                || $0.localizedName.localizedCaseInsensitiveContains("274URDFW")
+        } ?? NSScreen.screens.first { number($0).map { CGDisplayIsBuiltin($0) == 0 } ?? false }
+            ?? NSScreen.screens.first
     }
 
     // MARK: - Frames (on `queue`)

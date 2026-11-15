@@ -335,8 +335,8 @@ struct RGBScreenSample: Equatable {
     /// further, and its gamma darkens the middle range (Jater found them
     /// faint next to the speakers): colorful cells count for more, and the
     /// result is made more colorful and lifted.
-    static let monitorSaturation = 1.6
-    static let monitorLift = 0.6
+    static let monitorSaturation = 2.0
+    static let monitorLift = 0.45
 
     /// Red, green and blue per cell, 0 to 255, row by row.
     private(set) var channels: [Double]
