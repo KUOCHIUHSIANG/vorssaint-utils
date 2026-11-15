@@ -43,7 +43,7 @@ final class RGBLightingService: ObservableObject {
     func syncWithPreferences() {
         NommoService.shared.syncWithPreferences()
         MSIMonitorService.shared.syncWithPreferences()
-        syncScreen()
+        syncSources()
     }
 
     /// Off fades the lights to black, keeping the mode and the rest for when
@@ -122,13 +122,16 @@ final class RGBLightingService: ObservableObject {
     }
 
     private func lightingChanged() {
-        syncScreen()
+        syncSources()
         NommoService.shared.lightingChanged()
         MSIMonitorService.shared.lightingChanged()
     }
 
-    /// The picture is watched only while the screen mode shows.
-    private func syncScreen() {
-        RGBScreenSampler.shared.update(wanted: isActive && settings.isOn && settings.mode == .screen)
+    /// The picture is watched only while the screen mode shows, the sound
+    /// only while a music mode does.
+    private func syncSources() {
+        let shows = isActive && settings.isOn
+        RGBScreenSampler.shared.update(wanted: shows && settings.mode == .screen)
+        RGBAudioPulse.shared.update(wanted: shows && settings.mode.listens)
     }
 }

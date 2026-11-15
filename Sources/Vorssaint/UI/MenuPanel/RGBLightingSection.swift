@@ -41,6 +41,12 @@ struct RGBLightingSection: View {
                     if service.settings.mode == .screen {
                         RGBScreenModeNote()
                     }
+                    if service.settings.mode.listens {
+                        Text(strings.musicHint)
+                            .font(.system(size: 9.5))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                     if service.settings.mode.usesColor {
                         RGBLightingColorRow()
                         if service.settings.mode == .lightning {

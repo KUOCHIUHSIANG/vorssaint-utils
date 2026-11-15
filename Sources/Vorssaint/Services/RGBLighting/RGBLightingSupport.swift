@@ -92,7 +92,7 @@ struct RGBColor: Equatable {
 /// on Neptater's clock, so the speakers and the monitor stay in step instead of
 /// each running its own built-in effect.
 enum RGBLightingMode: String, CaseIterable {
-    case off, solid, breathing, cycle, rainbowBreathing, wave, meteor, lightning, screen
+    case off, solid, breathing, cycle, rainbowBreathing, wave, meteor, lightning, screen, music, musicRainbow
 
     /// The modes the menu offers; off is the switch's job.
     static let choosable = allCases.filter { $0 != .off }
@@ -101,7 +101,9 @@ enum RGBLightingMode: String, CaseIterable {
     var moves: Bool { self != .off && self != .solid }
     /// Whether the chosen color shows: as is, breathing, as the meteor, or
     /// under the lightning.
-    var usesColor: Bool { [.solid, .breathing, .meteor, .lightning].contains(self) }
+    var usesColor: Bool { [.solid, .breathing, .meteor, .lightning, .music].contains(self) }
+    /// Whether the mode follows the Mac's sound.
+    var listens: Bool { self == .music || self == .musicRainbow }
     var usesDirection: Bool { self == .wave || self == .meteor }
 }
 
@@ -380,6 +382,83 @@ struct RGBScreenSample: Equatable {
     }
 }
 
+/// Where the music is, for the music modes: the last beat, the color it
+/// brought (the random-color mode picks a new one each beat), and how loud the
+/// sound is against what played lately.
+struct RGBAudioSample: Equatable {
+    /// Seconds on the monotonic clock.
+    var lastBeat: TimeInterval
+    var beatHue: Double
+    /// 0 to 1.
+    var level: Double
+
+    /// A beat flashes full and fades out in about this long, at speed 1.
+    static let flashDecay: TimeInterval = 0.2
+    /// Between beats the lights glow with the loudness, up to this much.
+    static let glow = 0.25
+
+    /// How lit the lights are at `time`.
+    func brightness(at time: TimeInterval, speed: Double) -> Double {
+        let flash = exp(-max(0, time - lastBeat) / (Self.flashDecay / max(speed, 0.01)))
+        return min(1, max(flash, Self.glow * min(max(level, 0), 1)))
+    }
+}
+
+/// Finds beats in the Mac's sound as it plays, buffer by buffer: the bass
+/// (below about 150 Hz, where the kick drum sits) jumping well above its
+/// recent average is a beat. Also follows the loudness against the loudest
+/// of the last few seconds, so quiet and loud music both fill the range.
+struct RGBBeatDetector {
+    static let bassCutoff = 150.0
+    /// A beat is bass this many times its recent average...
+    static let threshold = 1.6
+    /// ...and no sooner than this after the last, so one kick is one beat.
+    static let minimumGap: TimeInterval = 0.18
+    /// Quieter than this is silence, whatever the average.
+    static let floor = 1e-5
+    static let averageTime: TimeInterval = 0.4
+    static let peakTime: TimeInterval = 2.5
+
+    private var bass: Float = 0
+    private var average = 0.0
+    private var peak = 1e-3
+    private var lastTime: TimeInterval?
+    private(set) var lastBeat = -Double.infinity
+    private(set) var level = 0.0
+
+    /// Takes interleaved samples that played at `time` and says whether they
+    /// bring a beat.
+    mutating func feed(_ samples: UnsafePointer<Float>, count: Int, channels: Int, sampleRate: Double,
+                       at time: TimeInterval) -> Bool {
+        let channels = max(channels, 1)
+        let frames = count / channels
+        guard frames > 0, sampleRate > 0 else { return false }
+        let pull = Float(1 - exp(-2 * .pi * Self.bassCutoff / sampleRate))
+        var bassEnergy = 0.0, energy = 0.0
+        for frame in 0..<frames {
+            var mono: Float = 0
+            for channel in 0..<channels { mono += samples[frame * channels + channel] }
+            mono /= Float(channels)
+            bass += pull * (mono - bass)
+            bassEnergy += Double(bass * bass)
+            energy += Double(mono * mono)
+        }
+        bassEnergy /= Double(frames)
+        energy /= Double(frames)
+        let elapsed = lastTime.map { max(0, time - $0) } ?? 0
+        lastTime = time
+        let beat = bassEnergy > Self.floor && bassEnergy > average * Self.threshold
+            && time - lastBeat >= Self.minimumGap
+        average += (bassEnergy - average) * (1 - exp(-elapsed / Self.averageTime))
+        if lastBeat == -.infinity, elapsed == 0 { average = bassEnergy }
+        let loudness = energy.squareRoot()
+        peak = max(loudness, peak * exp(-elapsed / Self.peakTime), 1e-3)
+        level = min(1, loudness / peak)
+        if beat { lastBeat = time }
+        return beat
+    }
+}
+
 /// The time the moving modes run on: the monotonic clock at the chosen
 /// speed. A change of speed leaves every effect where it is and only changes
 /// how fast it goes on from there, and every device reads this one clock, so
@@ -423,6 +502,7 @@ struct RGBLightingProgram: Equatable {
     let mode: RGBLightingMode
     let direction: RGBWaveDirection
     let color: RGBColor
+    let speed: Double
     /// One color per LED, or nil for black.
     let start: [RGBColor]?
     /// Seconds on the monotonic clock.
@@ -432,6 +512,7 @@ struct RGBLightingProgram: Equatable {
         mode = settings.shownMode
         direction = settings.direction
         color = settings.color
+        speed = settings.speed
         self.start = start
         self.began = began
     }
@@ -440,12 +521,13 @@ struct RGBLightingProgram: Equatable {
     /// and whether later frames will differ. Fades run on `time`; the effects
     /// run on `effectTime` (see `RGBLightingClock`), `time` itself by default.
     func frame(at time: TimeInterval, effectTime: TimeInterval? = nil, level: Double = 1,
-               lights: [RGBLightPosition], screen: RGBScreenSample? = nil) -> (colors: [RGBColor], moving: Bool) {
+               lights: [RGBLightPosition], screen: RGBScreenSample? = nil,
+               audio: RGBAudioSample? = nil) -> (colors: [RGBColor], moving: Bool) {
         let fade = max(0, time - began) / RGBLighting.fadeDuration
         let from = start?.count == lights.count ? start : nil
         let effect = effectTime ?? time
         let colors = lights.indices.map { index -> RGBColor in
-            let goal = target(at: effect, light: lights[index], screen: screen).scaled(level)
+            let goal = target(at: effect, now: time, light: lights[index], screen: screen, audio: audio).scaled(level)
             guard fade < 1 else { return goal }
             guard let from else { return goal.scaled(RGBLighting.fadeInFactor(fade)) }
             if mode == .off { return from[index].scaled(RGBLighting.fadeOutFactor(fade)) }
@@ -455,7 +537,8 @@ struct RGBLightingProgram: Equatable {
         return (colors, settling || mode.moves)
     }
 
-    private func target(at time: TimeInterval, light: RGBLightPosition, screen: RGBScreenSample?) -> RGBColor {
+    private func target(at time: TimeInterval, now: TimeInterval, light: RGBLightPosition,
+                        screen: RGBScreenSample?, audio: RGBAudioSample?) -> RGBColor {
         switch mode {
         case .off: return .black
         case .solid: return color
@@ -472,6 +555,11 @@ struct RGBLightingProgram: Equatable {
             return color.mixed(with: RGBLighting.defaultColor, RGBLighting.lightning(at: time))
         case .screen:
             return screen?.color(for: light) ?? .black
+        case .music:
+            return color.scaled(audio?.brightness(at: now, speed: speed) ?? 0)
+        case .musicRainbow:
+            guard let audio else { return .black }
+            return RGBColor(hue: audio.beatHue).scaled(audio.brightness(at: now, speed: speed))
         }
     }
 }

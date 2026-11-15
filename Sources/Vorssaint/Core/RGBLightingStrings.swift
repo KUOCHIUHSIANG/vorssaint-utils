@@ -23,6 +23,9 @@ struct RGBLightingFeatureStrings {
     let screenPermission: String
     let allowPermission: String
     let screenFailed: String
+    let music: String
+    let musicRainbow: String
+    let musicHint: String
     let direction: String
     let directionDown: String
     let directionUp: String
@@ -53,6 +56,8 @@ struct RGBLightingFeatureStrings {
         case .meteor: return meteor
         case .lightning: return lightning
         case .screen: return screen
+        case .music: return music
+        case .musicRainbow: return musicRainbow
         }
     }
 
@@ -109,6 +114,9 @@ extension RGBLightingFeatureStrings {
         screenPermission: "Needs Screen Recording permission to read the picture.",
         allowPermission: "Allow…",
         screenFailed: "Couldn’t read the monitor’s picture.",
+        music: "Music pulse",
+        musicRainbow: "Music pulse, random colors",
+        musicHint: "Flashes to the beat of whatever the Mac plays. The first time, macOS asks to let Neptater hear the Mac’s sound; nothing is recorded or kept.",
         direction: "Direction",
         directionDown: "Top to bottom",
         directionUp: "Bottom to top",
@@ -148,6 +156,9 @@ extension RGBLightingFeatureStrings {
         screenPermission: "Precisa da permissão de Gravação de Tela para ler a imagem.",
         allowPermission: "Permitir…",
         screenFailed: "Não foi possível ler a imagem do monitor.",
+        music: "Pulso da música",
+        musicRainbow: "Pulso da música, cores aleatórias",
+        musicHint: "Pisca no ritmo do que o Mac toca. Na primeira vez, o macOS pede para o Neptater ouvir o som do Mac; nada é gravado nem guardado.",
         direction: "Direção",
         directionDown: "De cima para baixo",
         directionUp: "De baixo para cima",
@@ -187,6 +198,9 @@ extension RGBLightingFeatureStrings {
         screenPermission: "Görüntüyü okumak için Ekran Kaydı izni gerekir.",
         allowPermission: "İzin ver…",
         screenFailed: "Monitörün görüntüsü okunamadı.",
+        music: "Müzik nabzı",
+        musicRainbow: "Müzik nabzı, rastgele renkler",
+        musicHint: "Mac’in çaldığı her şeyin ritmine göre yanıp söner. İlk seferde macOS, Neptater’in Mac’in sesini duyması için izin ister; hiçbir şey kaydedilmez ya da saklanmaz.",
         direction: "Yön",
         directionDown: "Yukarıdan aşağı",
         directionUp: "Aşağıdan yukarı",
@@ -226,6 +240,9 @@ extension RGBLightingFeatureStrings {
         screenPermission: "Нужно разрешение на запись экрана, чтобы считывать изображение.",
         allowPermission: "Разрешить…",
         screenFailed: "Не удалось считать изображение монитора.",
+        music: "Пульс музыки",
+        musicRainbow: "Пульс музыки, случайные цвета",
+        musicHint: "Мигает в такт тому, что играет Mac. В первый раз macOS попросит разрешить Neptater слышать звук Mac; ничего не записывается и не сохраняется.",
         direction: "Направление",
         directionDown: "Сверху вниз",
         directionUp: "Снизу вверх",
@@ -265,6 +282,9 @@ extension RGBLightingFeatureStrings {
         screenPermission: "Necesita el permiso de Grabación de pantalla para leer la imagen.",
         allowPermission: "Permitir…",
         screenFailed: "No se pudo leer la imagen del monitor.",
+        music: "Pulso musical",
+        musicRainbow: "Pulso musical, colores aleatorios",
+        musicHint: "Destella al ritmo de lo que suene en el Mac. La primera vez, macOS pide permiso para que Neptater oiga el sonido del Mac; no se graba ni se guarda nada.",
         direction: "Dirección",
         directionDown: "De arriba abajo",
         directionUp: "De abajo arriba",
@@ -304,6 +324,9 @@ extension RGBLightingFeatureStrings {
         screenPermission: "Na čítanie obrazu treba povolenie Nahrávanie obrazovky.",
         allowPermission: "Povoliť…",
         screenFailed: "Obraz monitora sa nepodarilo prečítať.",
+        music: "Pulz hudby",
+        musicRainbow: "Pulz hudby, náhodné farby",
+        musicHint: "Bliká do rytmu toho, čo Mac hrá. Prvýkrát macOS požiada o povolenie, aby Neptater počul zvuk Macu; nič sa nenahráva ani neukladá.",
         direction: "Smer",
         directionDown: "Zhora nadol",
         directionUp: "Zdola nahor",
@@ -343,6 +366,9 @@ extension RGBLightingFeatureStrings {
         screenPermission: "Braucht die Berechtigung für Bildschirmaufnahme, um das Bild zu lesen.",
         allowPermission: "Erlauben…",
         screenFailed: "Das Bild des Monitors ließ sich nicht lesen.",
+        music: "Musikpuls",
+        musicRainbow: "Musikpuls, zufällige Farben",
+        musicHint: "Blinkt im Takt dessen, was der Mac abspielt. Beim ersten Mal fragt macOS, ob Neptater den Ton des Mac hören darf; nichts wird aufgenommen oder gespeichert.",
         direction: "Richtung",
         directionDown: "Von oben nach unten",
         directionUp: "Von unten nach oben",
@@ -382,6 +408,9 @@ extension RGBLightingFeatureStrings {
         screenPermission: "L’autorisation d’enregistrement de l’écran est nécessaire pour lire l’image.",
         allowPermission: "Autoriser…",
         screenFailed: "Impossible de lire l’image de l’écran.",
+        music: "Pulsation musicale",
+        musicRainbow: "Pulsation musicale, couleurs aléatoires",
+        musicHint: "Clignote au rythme de ce que joue le Mac. La première fois, macOS demande d’autoriser Neptater à entendre le son du Mac. Rien n’est enregistré ni conservé.",
         direction: "Direction",
         directionDown: "De haut en bas",
         directionUp: "De bas en haut",
@@ -421,6 +450,9 @@ extension RGBLightingFeatureStrings {
         screenPermission: "Serve il permesso di registrazione dello schermo per leggere l’immagine.",
         allowPermission: "Consenti…",
         screenFailed: "Impossibile leggere l’immagine del monitor.",
+        music: "Pulsazione musicale",
+        musicRainbow: "Pulsazione musicale, colori casuali",
+        musicHint: "Lampeggia a ritmo di ciò che suona il Mac. La prima volta macOS chiede di permettere a Neptater di sentire l’audio del Mac; nulla viene registrato o conservato.",
         direction: "Direzione",
         directionDown: "Dall’alto in basso",
         directionUp: "Dal basso in alto",
@@ -460,6 +492,9 @@ extension RGBLightingFeatureStrings {
         screenPermission: "画面を読み取るには画面収録の許可が必要です。",
         allowPermission: "許可…",
         screenFailed: "モニターの画面を読み取れませんでした。",
+        music: "ミュージックパルス",
+        musicRainbow: "ミュージックパルス（ランダムカラー）",
+        musicHint: "Mac で再生中の音に合わせて点滅します。初回は Neptater が Mac の音を聞くことを許可するよう macOS が尋ねます。録音や保存はしません。",
         direction: "方向",
         directionDown: "上から下",
         directionUp: "下から上",
@@ -499,6 +534,9 @@ extension RGBLightingFeatureStrings {
         screenPermission: "화면을 읽으려면 화면 기록 권한이 필요합니다.",
         allowPermission: "허용…",
         screenFailed: "모니터 화면을 읽지 못했습니다.",
+        music: "음악 펄스",
+        musicRainbow: "음악 펄스(무작위 색상)",
+        musicHint: "Mac에서 재생 중인 소리의 박자에 맞춰 깜박입니다. 처음에는 Neptater가 Mac의 소리를 듣도록 허용할지 macOS가 묻습니다. 녹음하거나 저장하지 않습니다.",
         direction: "방향",
         directionDown: "위에서 아래로",
         directionUp: "아래에서 위로",
@@ -538,6 +576,9 @@ extension RGBLightingFeatureStrings {
         screenPermission: "Потрібен дозвіл на запис екрана, щоб зчитувати зображення.",
         allowPermission: "Дозволити…",
         screenFailed: "Не вдалося зчитати зображення монітора.",
+        music: "Пульс музики",
+        musicRainbow: "Пульс музики, випадкові кольори",
+        musicHint: "Блимає в такт тому, що грає Mac. Першого разу macOS попросить дозволити Neptater чути звук Mac; нічого не записується й не зберігається.",
         direction: "Напрямок",
         directionDown: "Згори донизу",
         directionUp: "Знизу догори",
@@ -577,6 +618,9 @@ extension RGBLightingFeatureStrings {
         screenPermission: "需要“屏幕录制”权限才能读取画面。",
         allowPermission: "授权…",
         screenFailed: "无法读取显示器的画面。",
+        music: "音乐律动",
+        musicRainbow: "音乐律动（随机彩色）",
+        musicHint: "跟着 Mac 播放的声音节拍闪烁。第一次使用时 macOS 会询问是否允许 Neptater 听取 Mac 的声音；不会录下或保存任何声音。",
         direction: "方向",
         directionDown: "上往下",
         directionUp: "下往上",
@@ -616,6 +660,9 @@ extension RGBLightingFeatureStrings {
         screenPermission: "需要「螢幕錄製」權限才能讀取畫面。",
         allowPermission: "授權…",
         screenFailed: "無法讀取螢幕的畫面。",
+        music: "音樂律動",
+        musicRainbow: "音樂律動（隨機彩色）",
+        musicHint: "跟著 Mac 播放的聲音節拍閃爍。第一次使用時，macOS 會詢問是否允許 Neptater 聽取 Mac 的聲音；不會錄下或保存任何聲音。",
         direction: "方向",
         directionDown: "上往下",
         directionUp: "下往上",
@@ -655,6 +702,9 @@ extension RGBLightingFeatureStrings {
         screenPermission: "需要「螢幕錄影」權限才能讀取畫面。",
         allowPermission: "授權…",
         screenFailed: "無法讀取顯示器的畫面。",
+        music: "音樂律動",
+        musicRainbow: "音樂律動（隨機彩色）",
+        musicHint: "跟著 Mac 播放的聲音節拍閃爍。第一次使用時，macOS 會詢問是否允許 Neptater 聽取 Mac 的聲音；不會錄下或儲存任何聲音。",
         direction: "方向",
         directionDown: "上往下",
         directionUp: "下往上",

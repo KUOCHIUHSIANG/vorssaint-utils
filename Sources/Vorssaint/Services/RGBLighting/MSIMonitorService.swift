@@ -35,6 +35,9 @@ final class MSIMonitorService: ObservableObject {
     private static let answerTimeout: TimeInterval = 1
     /// The monitor may still set up its own lighting just after it appears on USB.
     private static let connectSettle: TimeInterval = 2
+    /// Its own effect dims out a little quicker than a full fade, so the
+    /// lighting isn't long in coming.
+    private static let ownFadeDuration: TimeInterval = 0.6
 
     private let queue = DispatchQueue(label: "io.github.kuochiuhsiang.neptater.msi-monitor", qos: .userInitiated)
     private var manager: IOHIDManager?
@@ -207,21 +210,47 @@ final class MSIMonitorService: ObservableObject {
 
     // MARK: - Drawing (on `queue` only)
 
-    /// The monitor's own effect's colors can't be known, so the lighting fades
-    /// in from black, unless the monitor still shows an earlier Neptater frame
-    /// to fade on from.
+    /// After the monitor comes back (powered up, or switched back from another
+    /// computer), it shows its own effect, whose colors can't be known: that
+    /// fades out through its brightness, then the lighting fades in from
+    /// black. A frame Neptater drew earlier is simply faded on from.
     private func takeOver(_ settings: RGBLightingChoice, on device: IOHIDDevice) {
         var report = [UInt8](repeating: 0, count: MSIMonitorProtocol.frameLength)
         var length = report.count
         let read = IOHIDDeviceGetReport(device, kIOHIDReportTypeFeature, CFIndex(MSIMonitorProtocol.frameReportID),
                                         &report, &length)
-        var start: [RGBColor]?
-        if read == kIOReturnSuccess {
-            start = MSIMonitorProtocol.colors(in: Array(report.prefix(length)))
-        } else {
+        guard read == kIOReturnSuccess else {
             Self.log.error("reading the lighting failed: \(read, privacy: .public)")
+            draw(settings, from: nil, on: device)
+            return
         }
-        draw(settings, from: start, on: device)
+        let current = Array(report.prefix(length))
+        if let drawn = MSIMonitorProtocol.colors(in: current) {
+            draw(settings, from: drawn, on: device)
+            return
+        }
+        fadeOut(current, on: device)
+        let black = MSIMonitorProtocol.frame([])
+        _ = IOHIDDeviceSetReport(device, kIOHIDReportTypeFeature, CFIndex(MSIMonitorProtocol.frameReportID),
+                                 black, black.count)
+        drawnColors = Array(repeating: .black, count: MSIMonitorProtocol.ledCount)
+        draw(settings, from: nil, on: device)
+    }
+
+    /// Dims the monitor's own effect to dark, paced like frames.
+    private func fadeOut(_ effect: [UInt8], on device: IOHIDDevice) {
+        guard let full = MSIMonitorProtocol.brightness(of: effect), full > 0 else { return }
+        let begin = ProcessInfo.processInfo.systemUptime
+        while true {
+            let progress = min(1, (ProcessInfo.processInfo.systemUptime - begin) / Self.ownFadeDuration)
+            let level = Int((Double(full) * RGBLighting.fadeOutFactor(progress)).rounded())
+            if let dimmed = MSIMonitorProtocol.dimmed(effect, to: level) {
+                _ = IOHIDDeviceSetReport(device, kIOHIDReportTypeFeature, CFIndex(MSIMonitorProtocol.frameReportID),
+                                         dimmed, dimmed.count)
+            }
+            if progress >= 1 { return }
+            Thread.sleep(forTimeInterval: RGBLighting.frameInterval)
+        }
     }
 
     private func draw(_ settings: RGBLightingChoice, from start: [RGBColor]?, on device: IOHIDDevice) {
@@ -241,7 +270,8 @@ final class MSIMonitorService: ObservableObject {
         let now = ProcessInfo.processInfo.systemUptime
         let (colors, moving) = program.frame(at: now, effectTime: RGBLightingClock.shared.effectTime(at: now),
                                              level: drawingLevel, lights: RGBDesk.msiMonitor,
-                                             screen: RGBScreenSampler.shared.latest)
+                                             screen: RGBScreenSampler.shared.latest,
+                                             audio: RGBAudioPulse.shared.latest)
         if colors != drawnColors {
             let frame = MSIMonitorProtocol.frame(colors)
             let sent = IOHIDDeviceSetReport(device, kIOHIDReportTypeFeature, CFIndex(MSIMonitorProtocol.frameReportID),

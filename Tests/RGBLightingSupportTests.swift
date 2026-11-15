@@ -61,9 +61,10 @@ enum RGBLightingSupportTests {
                         && dimming.frame(at: 1, lights: nommo) == (Array(repeating: .black, count: 12), false)
                         && dimming.frame(at: 0.5, lights: nommo).moving,
                      "the switch fades the lights to black and keeps the mode for later")
-        suite.expect(!RGBLightingMode.choosable.contains(.off) && RGBLightingMode.choosable.count == 8,
+        suite.expect(!RGBLightingMode.choosable.contains(.off) && RGBLightingMode.choosable.count == 10,
                      "the menu leaves off to the switch")
-        suite.expect(RGBLightingMode.allCases.filter(\.usesColor) == [.solid, .breathing, .meteor, .lightning]
+        suite.expect(RGBLightingMode.allCases.filter(\.usesColor) == [.solid, .breathing, .meteor, .lightning, .music]
+                        && RGBLightingMode.allCases.filter(\.listens) == [.music, .musicRainbow]
                         && RGBLightingMode.allCases.filter(\.usesDirection) == [.wave, .meteor]
                         && RGBLightingMode.allCases.filter { !$0.moves } == [.off, .solid],
                      "only the modes that use a color or a direction ask for one")
@@ -210,6 +211,49 @@ enum RGBLightingSupportTests {
                         && watching.frame(at: 5, lights: nommo).moving,
                      "the screen mode shows the picture, dark until the first one arrives, and keeps drawing")
 
+        // MARK: Music
+
+        // A kick (60 Hz, loud) every half second over a quiet hum, in 512-frame stereo buffers at 48 kHz.
+        var detector = RGBBeatDetector()
+        let rate = 48_000.0, framesPerBuffer = 512
+        var beats: [Double] = []
+        var buffer = [Float](repeating: 0, count: framesPerBuffer * 2)
+        for index in 0..<(Int(4 * rate) / framesPerBuffer) {
+            let start = Double(index * framesPerBuffer) / rate
+            for frame in 0..<framesPerBuffer {
+                let time = start + Double(frame) / rate
+                let sinceKick = time.truncatingRemainder(dividingBy: 0.5)
+                let kick = sinceKick < 0.08 ? 0.8 * sin(2 * .pi * 60 * time) * (1 - sinceKick / 0.08) : 0
+                let hum = 0.02 * sin(2 * .pi * 440 * time)
+                buffer[frame * 2] = Float(kick + hum)
+                buffer[frame * 2 + 1] = Float(kick + hum)
+            }
+            if buffer.withUnsafeBufferPointer({ detector.feed($0.baseAddress!, count: buffer.count, channels: 2,
+                                                              sampleRate: rate, at: start) }) {
+                beats.append(start)
+            }
+        }
+        let onKicks = beats.filter { abs($0 - ($0 / 0.5).rounded() * 0.5) < 0.05 }
+        suite.expect(onKicks.count >= 6 && onKicks.count == beats.count,
+                     "each kick is a beat, and nothing between kicks is (\(beats.map { String(format: "%.2f", locale: Locale(identifier: "en_US_POSIX"), $0) }))")
+        var quiet = RGBBeatDetector()
+        let silence = [Float](repeating: 0, count: 1024)
+        suite.expect(!(0..<200).contains { step in
+            silence.withUnsafeBufferPointer { quiet.feed($0.baseAddress!, count: 1024, channels: 2, sampleRate: rate,
+                                                        at: Double(step) * 0.01) }
+        } && quiet.level == 0, "silence has no beats")
+        let pulse = RGBAudioSample(lastBeat: 10, beatHue: 200, level: 0.4)
+        suite.expect(pulse.brightness(at: 10, speed: 1) == 1 && pulse.brightness(at: 10.2, speed: 1) < 0.4
+                        && abs(pulse.brightness(at: 12, speed: 1) - RGBAudioSample.glow * 0.4) < 1e-9
+                        && pulse.brightness(at: 10.2, speed: 2) < pulse.brightness(at: 10.2, speed: 1),
+                     "a beat flashes full, fades to a glow that follows the loudness, quicker when faster")
+        let beatProgram = RGBLightingProgram(settings(.music, color: red), start: nil, began: 0)
+        let rainbowMusic = RGBLightingProgram(settings(.musicRainbow), start: nil, began: 0)
+        suite.expect(beatProgram.frame(at: 10, lights: monitor, audio: pulse).colors.allSatisfy { $0 == red }
+                        && rainbowMusic.frame(at: 10, lights: nommo, audio: pulse).colors.allSatisfy { $0 == RGBColor(hue: 200) }
+                        && beatProgram.frame(at: 10, lights: nommo).colors.allSatisfy { $0 == .black },
+                     "on a beat every light flashes the chosen color or the beat's color, dark until the sound is heard")
+
         // MARK: MSI monitor
 
         let query = MSIMonitorProtocol.layoutQuery
@@ -243,5 +287,11 @@ enum RGBLightingSupportTests {
                      "the Rainbow Wave comes back as bright as the slider, never fully dark")
         suite.expect(!MSIMonitorProtocol.isDrawnFrame(original) && MSIMonitorProtocol.colors(in: original) == nil,
                      "the monitor's own effect has no colors to fade on from")
+        var fromWindows = original
+        fromWindows[167] = 0x82
+        let dimmedOwn = MSIMonitorProtocol.dimmed(fromWindows, to: 30)
+        suite.expect(MSIMonitorProtocol.brightness(of: fromWindows) == 100 && dimmedOwn?[6] == 30 && dimmedOwn?[17] == 30
+                        && dimmedOwn?[167] == 0 && dimmedOwn?[1] == 0x1A,
+                     "an effect set elsewhere fades out through its own brightness, never written to flash")
     }
 }

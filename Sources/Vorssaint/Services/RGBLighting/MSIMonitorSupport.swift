@@ -96,6 +96,24 @@ enum MSIMonitorProtocol {
         Int((pow(min(max(level, 0), 1), gamma) * 100).rounded())
     }
 
+    /// `report`, the monitor's own effect as read, at `brightness` (0 to 100)
+    /// and without a flash write: how Neptater fades out an effect whose
+    /// colors it can't know, say one set from Windows.
+    static func dimmed(_ report: [UInt8], to brightness: Int) -> [UInt8]? {
+        guard report.count == frameLength, report[0] == frameReportID else { return nil }
+        var bytes = report
+        let level = UInt8(min(max(brightness, 0), 100))
+        for block in controlBlocks { bytes[block + 5] = level }
+        bytes[storeIndex] = 0
+        return bytes
+    }
+
+    /// The brightness an effect as read shows at, 0 to 100.
+    static func brightness(of report: [UInt8]) -> Int? {
+        guard report.count == frameLength, report[0] == frameReportID else { return nil }
+        return min(Int(report[controlBlocks[0] + 5]), 100)
+    }
+
     /// Whether `report`, read back from the monitor, is a frame Neptater drew,
     /// rather than the monitor's own effect.
     static func isDrawnFrame(_ report: [UInt8]) -> Bool {
