@@ -162,11 +162,16 @@ enum RGBLightingSupportTests {
         suite.expect(frame.count == 168 && frame[0] == 0x72 && Array(frame[1...11]) == Array(frame[12...22])
                         && frame[1] == 0x01 && frame[6] == 100 && frame[10] == 0x80,
                      "a frame is static, full brightness, painted from the LED colors, in both control blocks")
-        suite.expect(frame[23..<95].allSatisfy { $0 == 0 } && frame[167] == 0
-                        && Array(frame[95..<98]) == [rainbow[0].red, rainbow[0].green, rainbow[0].blue],
+        suite.expect(frame[23..<95].allSatisfy { $0 == 0 } && frame[167] == 0 && Array(frame[95..<98]) == [255, 0, 0],
                      "only the second color array is used, and nothing is written to flash")
-        suite.expect(MSIMonitorProtocol.isDrawnFrame(frame) && MSIMonitorProtocol.colors(in: frame) == rainbow,
-                     "a drawn frame read back gives its colors to fade on from")
+        let orange = MSIMonitorProtocol.frame([RGBColor(hex: "#FF8A00")!])
+        let pink = MSIMonitorProtocol.frame([RGBColor(hex: "#FF4FB8")!])
+        suite.expect(Array(orange[95..<98]) == [0xFF, 0x2E, 0x00] && Array(pink[95..<98]) == [0xFF, 0x0A, 0x66],
+                     "colors go out through the 2.8 gamma Jater matched to the speakers' orange and pink")
+        let readBack = MSIMonitorProtocol.colors(in: frame) ?? []
+        suite.expect(MSIMonitorProtocol.isDrawnFrame(frame) && readBack.count == 22 && readBack[0] == rainbow[0]
+                        && zip(readBack, rainbow).allSatisfy { abs(Int($0.green) - Int($1.green)) <= 24 },
+                     "a drawn frame read back gives its colors, close enough to fade on from")
         var own = [UInt8](repeating: 0, count: 168)
         own.replaceSubrange(0..<23, with: [0x72, 0x1A, 0xFF, 0xFF, 0xFF, 0x01, 0x64, 0x00, 0xFF, 0x00, 0x00, 0x00,
                                            0x1A, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00])

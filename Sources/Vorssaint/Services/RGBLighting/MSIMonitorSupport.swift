@@ -19,6 +19,10 @@ import Foundation
 /// first, each row lighting the left and the right side alike. Only the
 /// second color array paints them; the first changes nothing (tried with
 /// white and with red).
+///
+/// The monitor drives its LEDs straight from the values, so a little green
+/// in a red shows as pink; colors go out through a 2.8 gamma, which Jater
+/// matched by eye against the speakers' orange and pink.
 enum MSIMonitorProtocol {
     static let vendorID = 0x1462
     static let productID = 0x3FA4
@@ -34,6 +38,11 @@ enum MSIMonitorProtocol {
     private static let staticMode: UInt8 = 0x01
     private static let paletteFlag: UInt8 = 0x80
     private static let storeIndex = 167
+    static let gamma = 2.8
+
+    private static let corrected: [UInt8] = (0...255).map {
+        UInt8((pow(Double($0) / 255, gamma) * 255).rounded())
+    }
 
     /// Asks which layout the monitor speaks; the answer comes as input report 0x01.
     static let layoutQuery: [UInt8] = {
@@ -49,8 +58,8 @@ enum MSIMonitorProtocol {
         return Int(reply[3])
     }
 
-    /// A static frame painted LED by LED, at full brightness (Neptater scales
-    /// the colors itself), never written to flash.
+    /// A static frame painted LED by LED, gamma corrected, at full brightness
+    /// (Neptater scales the colors itself), never written to flash.
     static func frame(_ colors: [RGBColor]) -> [UInt8] {
         var bytes = [UInt8](repeating: 0, count: frameLength)
         bytes[0] = frameReportID
@@ -62,9 +71,9 @@ enum MSIMonitorProtocol {
         }
         for index in 0..<ledCount {
             let color = index < colors.count ? colors[index] : .black
-            bytes[colorsStart + index * 3] = color.red
-            bytes[colorsStart + index * 3 + 1] = color.green
-            bytes[colorsStart + index * 3 + 2] = color.blue
+            bytes[colorsStart + index * 3] = corrected[Int(color.red)]
+            bytes[colorsStart + index * 3 + 1] = corrected[Int(color.green)]
+            bytes[colorsStart + index * 3 + 2] = corrected[Int(color.blue)]
         }
         return bytes
     }
@@ -76,12 +85,13 @@ enum MSIMonitorProtocol {
             && report[controlBlocks[0]] == staticMode && report[controlBlocks[0] + 9] == paletteFlag
     }
 
-    /// The colors in a drawn frame, to fade on from.
+    /// The colors in a drawn frame, undoing the gamma, to fade on from.
     static func colors(in report: [UInt8]) -> [RGBColor]? {
         guard isDrawnFrame(report) else { return nil }
+        func plain(_ value: UInt8) -> UInt8 { UInt8((pow(Double(value) / 255, 1 / gamma) * 255).rounded()) }
         return (0..<ledCount).map {
-            RGBColor(red: report[colorsStart + $0 * 3], green: report[colorsStart + $0 * 3 + 1],
-                     blue: report[colorsStart + $0 * 3 + 2])
+            RGBColor(red: plain(report[colorsStart + $0 * 3]), green: plain(report[colorsStart + $0 * 3 + 1]),
+                     blue: plain(report[colorsStart + $0 * 3 + 2]))
         }
     }
 
