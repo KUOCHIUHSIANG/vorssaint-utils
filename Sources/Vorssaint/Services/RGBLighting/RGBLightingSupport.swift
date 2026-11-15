@@ -51,6 +51,15 @@ struct RGBColor: Equatable {
         return degrees < 0 ? degrees + 360 : degrees
     }
 
+    /// Brighter in the middle range, the hue and saturation kept: the
+    /// brightest channel goes to `exponent` of its share, and the others
+    /// scale with it. Black stays black.
+    func lifted(by exponent: Double) -> RGBColor {
+        let high = Double(max(red, green, blue))
+        guard high > 0 else { return self }
+        return scaled(255 * pow(high / 255, exponent) / high)
+    }
+
     /// More (or less) colorful at the same brightness: the channels move
     /// away from the brightest one by `factor`, up to full saturation.
     func saturated(by factor: Double) -> RGBColor {
@@ -63,9 +72,10 @@ struct RGBColor: Equatable {
         return RGBColor(red: move(red), green: move(green), blue: move(blue))
     }
 
+    /// Every channel times `factor`, held within 0 to 255.
     func scaled(_ factor: Double) -> RGBColor {
-        let share = min(max(factor, 0), 1)
-        func scale(_ channel: UInt8) -> UInt8 { UInt8((Double(channel) * share).rounded()) }
+        let share = factor.isFinite ? max(factor, 0) : 0
+        func scale(_ channel: UInt8) -> UInt8 { UInt8(min((Double(channel) * share).rounded(), 255)) }
         return RGBColor(red: scale(red), green: scale(green), blue: scale(blue))
     }
 
@@ -321,6 +331,12 @@ struct RGBScreenSample: Equatable {
     static let cornerRows = 7
     /// Reflected off the wall, colors wash out; this brings them back.
     static let saturation = 1.3
+    /// The monitor's rows average whole strips of the picture, which wash out
+    /// further, and its gamma darkens the middle range (Jater found them
+    /// faint next to the speakers): colorful cells count for more, and the
+    /// result is made more colorful and lifted.
+    static let monitorSaturation = 1.6
+    static let monitorLift = 0.6
 
     /// Red, green and blue per cell, 0 to 255, row by row.
     private(set) var channels: [Double]
@@ -370,21 +386,35 @@ struct RGBScreenSample: Equatable {
             averaged = average(rows: Array((Self.rows - Self.cornerRows)..<Self.rows), columns: Array(side))
         } else {
             let everyColumn = Array(0..<Self.columns)
-            let top = average(rows: Array(0..<Self.edgeRows), columns: everyColumn)
-            let bottom = average(rows: Array((Self.rows - Self.edgeRows)..<Self.rows), columns: everyColumn)
-            averaged = top.mixed(with: bottom, RGBLighting.eased(light.y / RGBDesk.monitorHeight))
+            let top = average(rows: Array(0..<Self.edgeRows), columns: everyColumn, favoringColor: true)
+            let bottom = average(rows: Array((Self.rows - Self.edgeRows)..<Self.rows), columns: everyColumn,
+                                 favoringColor: true)
+            return top.mixed(with: bottom, RGBLighting.eased(light.y / RGBDesk.monitorHeight))
+                .saturated(by: Self.monitorSaturation).lifted(by: Self.monitorLift)
         }
         return averaged.saturated(by: Self.saturation)
     }
 
-    private func average(rows: [Int], columns: [Int]) -> RGBColor {
+    /// The cells' average; `favoringColor` weighs each by how colorful and
+    /// how bright it is, so a patch of green isn't lost in a white page.
+    private func average(rows: [Int], columns: [Int], favoringColor: Bool = false) -> RGBColor {
         var total = [0.0, 0.0, 0.0]
+        var weights = 0.0
         for row in rows {
             for column in columns {
-                for channel in 0..<3 { total[channel] += channels[(row * Self.columns + column) * 3 + channel] }
+                let cell = (row * Self.columns + column) * 3
+                let rgb = [channels[cell], channels[cell + 1], channels[cell + 2]]
+                var weight = 1.0
+                if favoringColor {
+                    let high = rgb.max() ?? 0, low = rgb.min() ?? 0
+                    let saturation = high > 0 ? (high - low) / high : 0
+                    weight = (0.05 + saturation * saturation) * (0.1 + high / 255)
+                }
+                for channel in 0..<3 { total[channel] += rgb[channel] * weight }
+                weights += weight
             }
         }
-        let count = Double(max(rows.count * columns.count, 1))
+        let count = max(weights, 1e-9)
         func byte(_ value: Double) -> UInt8 { UInt8(min(max(value / count, 0), 255).rounded()) }
         return RGBColor(red: byte(total[0]), green: byte(total[1]), blue: byte(total[2]))
     }

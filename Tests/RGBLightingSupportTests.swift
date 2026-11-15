@@ -19,6 +19,9 @@ enum RGBLightingSupportTests {
         suite.expect(RGBColor.black.hue == nil, "black has no hue")
         suite.expect(RGBColor(red: 200, green: 100, blue: 0).scaled(0.5) == RGBColor(red: 100, green: 50, blue: 0),
                      "scaling dims every channel alike")
+        suite.expect(RGBColor(red: 200, green: 100, blue: 0).scaled(3) == RGBColor(red: 255, green: 255, blue: 0)
+                        && RGBColor(red: 200, green: 100, blue: 0).scaled(.nan) == .black,
+                     "scaling never runs past full or breaks on a bad factor")
         let green = RGBColor(hex: "#22E05A")!
         suite.expect(green.hex == "#22E05A" && RGBColor(hex: "22e05a") == green && RGBColor(hex: "#12345") == nil,
                      "a color saves as #RRGGBB and reads back")
@@ -194,8 +197,18 @@ enum RGBLightingSupportTests {
         // Sky on top, grey in the middle, grass at the bottom.
         let landscape = picture { _, y in y < 5 ? (255, 255, 0) : y >= 17 ? (0, 200, 0) : (40, 40, 40) }
         let rowColors = monitor.map(landscape.color(for:))
-        suite.expect(rowColors[0] == RGBColor(red: 255, green: 255, blue: 0) && rowColors[21] == RGBColor(red: 0, green: 200, blue: 0),
-                     "the monitor's top row takes the top of the picture, its bottom row the bottom")
+        suite.expect(rowColors[0] == RGBColor(red: 255, green: 255, blue: 0) && rowColors[21].green > 200
+                        && rowColors[21].red == 0 && rowColors[21].blue == 0,
+                     "the monitor's top row takes the top of the picture, its bottom row the bottom, lifted")
+        // A white page with a strip of green down its right side.
+        let page = picture { x, _ in x >= 26 ? (0, 180, 0) : (235, 235, 235) }
+        let pageRow = page.color(for: monitor[0])
+        suite.expect(Int(pageRow.green) - Int(pageRow.red) > 80,
+                     "a patch of color outweighs a white page on the monitor (\(pageRow.hex))")
+        suite.expect(RGBColor(red: 60, green: 30, blue: 0).lifted(by: 0.6).red > 100
+                        && RGBColor(red: 60, green: 30, blue: 0).lifted(by: 0.6).blue == 0
+                        && RGBColor.black.lifted(by: 0.6) == .black,
+                     "lifting brightens the middle range and keeps black black")
         suite.expect(zip(rowColors, rowColors.dropFirst()).allSatisfy { $0.red >= $1.red } && rowColors[11].red > 0
                         && rowColors[11].red < 255,
                      "the rows between blend from the top's color to the bottom's, with no line across")
@@ -209,7 +222,8 @@ enum RGBLightingSupportTests {
                      "saturation deepens a color at the same brightness and leaves greys alone")
         let dark = RGBScreenSample(channels: [])
         let halfway = dark.blended(toward: landscape, share: 0.5)
-        suite.expect(halfway.color(for: monitor[0]).red == 128 && dark.blended(toward: landscape, share: 1) == landscape,
+        suite.expect(halfway.color(for: nommo[0]) == landscape.color(for: nommo[0]).scaled(0.5)
+                        && dark.blended(toward: landscape, share: 1) == landscape,
                      "smoothing moves part of the way to the newest picture")
         let watching = RGBLightingProgram(settings(.screen), start: nil, began: 0)
         suite.expect(watching.frame(at: 5, lights: nommo, screen: corners).colors[6] == corners.color(for: nommo[6])
