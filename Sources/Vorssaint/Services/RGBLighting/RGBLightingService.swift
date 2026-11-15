@@ -131,7 +131,7 @@ final class RGBLightingService: ObservableObject {
     /// only while a music mode does.
     private func syncSources() {
         let shows = isActive && settings.isOn
-        RGBScreenSampler.shared.update(wanted: shows && settings.mode == .screen)
+        RGBScreenSampler.shared.update(wanted: shows && settings.mode.watchesScreen)
         RGBAudioPulse.shared.update(wanted: shows && settings.mode.listens)
     }
 }

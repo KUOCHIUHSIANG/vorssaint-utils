@@ -38,7 +38,7 @@ struct RGBLightingSection: View {
                                 .frame(width: 150)
                         }
                     }
-                    if service.settings.mode == .screen {
+                    if service.settings.mode.watchesScreen {
                         RGBScreenModeNote()
                     }
                     if service.settings.mode.listens {

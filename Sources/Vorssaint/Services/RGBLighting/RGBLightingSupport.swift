@@ -102,7 +102,7 @@ struct RGBColor: Equatable {
 /// on Neptater's clock, so the speakers and the monitor stay in step instead of
 /// each running its own built-in effect.
 enum RGBLightingMode: String, CaseIterable {
-    case off, solid, breathing, cycle, rainbowBreathing, wave, meteor, lightning, screen, music, musicRainbow
+    case off, solid, breathing, cycle, rainbowBreathing, wave, meteor, lightning, screen, music, musicRainbow, screenMusic
 
     /// The modes the menu offers; off is the switch's job.
     static let choosable = allCases.filter { $0 != .off }
@@ -113,7 +113,9 @@ enum RGBLightingMode: String, CaseIterable {
     /// under the lightning.
     var usesColor: Bool { [.solid, .breathing, .meteor, .lightning, .music].contains(self) }
     /// Whether the mode follows the Mac's sound.
-    var listens: Bool { self == .music || self == .musicRainbow }
+    var listens: Bool { self == .music || self == .musicRainbow || self == .screenMusic }
+    /// Whether the mode follows the picture on the monitor.
+    var watchesScreen: Bool { self == .screen || self == .screenMusic }
     var usesDirection: Bool { self == .wave || self == .meteor }
 }
 
@@ -434,11 +436,23 @@ struct RGBAudioSample: Equatable {
     static let flashDecay: TimeInterval = 0.2
     /// Between beats the lights glow with the loudness, up to this much.
     static let glow = 0.25
+    /// With the screen's colors, they keep this much between beats even in
+    /// silence, so the picture's colors still show, and more as it gets loud.
+    static let screenFloor = 0.35
+    static let screenGlow = 0.45
 
     /// How lit the lights are at `time`.
     func brightness(at time: TimeInterval, speed: Double) -> Double {
-        let flash = exp(-max(0, time - lastBeat) / (Self.flashDecay / max(speed, 0.01)))
-        return min(1, max(flash, Self.glow * min(max(level, 0), 1)))
+        min(1, max(flash(at: time, speed: speed), Self.glow * min(max(level, 0), 1)))
+    }
+
+    /// How lit the screen's colors are at `time`.
+    func screenBrightness(at time: TimeInterval, speed: Double) -> Double {
+        min(1, max(flash(at: time, speed: speed), Self.screenFloor + Self.screenGlow * min(max(level, 0), 1)))
+    }
+
+    private func flash(at time: TimeInterval, speed: Double) -> Double {
+        exp(-max(0, time - lastBeat) / (Self.flashDecay / max(speed, 0.01)))
     }
 }
 
@@ -598,6 +612,9 @@ struct RGBLightingProgram: Equatable {
         case .musicRainbow:
             guard let audio else { return .black }
             return RGBColor(hue: audio.beatHue).scaled(audio.brightness(at: now, speed: speed))
+        case .screenMusic:
+            let picture = screen?.color(for: light) ?? .black
+            return picture.scaled(audio?.screenBrightness(at: now, speed: speed) ?? RGBAudioSample.screenFloor)
         }
     }
 }

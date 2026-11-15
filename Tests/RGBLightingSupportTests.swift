@@ -64,10 +64,11 @@ enum RGBLightingSupportTests {
                         && dimming.frame(at: 1, lights: nommo) == (Array(repeating: .black, count: 12), false)
                         && dimming.frame(at: 0.5, lights: nommo).moving,
                      "the switch fades the lights to black and keeps the mode for later")
-        suite.expect(!RGBLightingMode.choosable.contains(.off) && RGBLightingMode.choosable.count == 10,
+        suite.expect(!RGBLightingMode.choosable.contains(.off) && RGBLightingMode.choosable.count == 11,
                      "the menu leaves off to the switch")
         suite.expect(RGBLightingMode.allCases.filter(\.usesColor) == [.solid, .breathing, .meteor, .lightning, .music]
-                        && RGBLightingMode.allCases.filter(\.listens) == [.music, .musicRainbow]
+                        && RGBLightingMode.allCases.filter(\.listens) == [.music, .musicRainbow, .screenMusic]
+                        && RGBLightingMode.allCases.filter(\.watchesScreen) == [.screen, .screenMusic]
                         && RGBLightingMode.allCases.filter(\.usesDirection) == [.wave, .meteor]
                         && RGBLightingMode.allCases.filter { !$0.moves } == [.off, .solid],
                      "only the modes that use a color or a direction ask for one")
@@ -273,6 +274,15 @@ enum RGBLightingSupportTests {
                         && rainbowMusic.frame(at: 10, lights: nommo, audio: pulse).colors.allSatisfy { $0 == RGBColor(hue: 200) }
                         && beatProgram.frame(at: 10, lights: nommo).colors.allSatisfy { $0 == .black },
                      "on a beat every light flashes the chosen color or the beat's color, dark until the sound is heard")
+
+        let both = RGBLightingProgram(settings(.screenMusic), start: nil, began: 0)
+        let cornerRed = corners.color(for: nommo[6])
+        suite.expect(both.frame(at: 10, lights: nommo, screen: corners, audio: pulse).colors[6] == cornerRed
+                        && both.frame(at: 12, lights: nommo, screen: corners, audio: pulse).colors[6]
+                            == cornerRed.scaled(RGBAudioSample.screenFloor + RGBAudioSample.screenGlow * 0.4)
+                        && both.frame(at: 12, lights: nommo, screen: corners).colors[6]
+                            == cornerRed.scaled(RGBAudioSample.screenFloor),
+                     "screen colors with the music: full on a beat, a glow between beats, the picture still shown in silence")
 
         // MARK: MSI monitor
 

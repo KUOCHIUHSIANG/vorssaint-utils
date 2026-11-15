@@ -25,7 +25,7 @@ struct RGBLightingSettings: View {
                 }
             }
             Group {
-                if service.settings.mode == .screen {
+                if service.settings.mode.watchesScreen {
                     RGBScreenModeNote(font: .caption)
                         .padding(.leading, settingsRowTextInset)
                 }
