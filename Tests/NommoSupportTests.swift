@@ -153,6 +153,16 @@ enum NommoSupportTests {
                      "a color saves as #RRGGBB and reads back")
         suite.expect(NommoLighting.swatches.count == 9 && Set(NommoLighting.swatches.map(\.hex)).count == 9,
                      "nine distinct swatches")
+        let added = NommoLighting.decodeCustomColors("#123456, #abcdef,#123456,#FFFFFF,nope,#12345")
+        suite.expect(added.map(\.hex) == ["#123456", "#ABCDEF"],
+                     "added colors read back once each, without repeats of a fixed swatch or unreadable ones")
+        suite.expect(NommoLighting.encodeCustomColors(added) == "#123456,#ABCDEF"
+                        && NommoLighting.decodeCustomColors(NommoLighting.encodeCustomColors(added)) == added
+                        && NommoLighting.decodeCustomColors(nil).isEmpty && NommoLighting.decodeCustomColors("").isEmpty,
+                     "added colors save and read back unchanged")
+        let many = (1...12).map { NommoColor(red: UInt8($0), green: 0, blue: 0) }
+        suite.expect(NommoLighting.decodeCustomColors(NommoLighting.encodeCustomColors(many)).count
+                        == NommoLighting.maxCustomColors, "at most nine colors can be added")
         suite.expect(NommoLighting.levelFactor(percent: 100) == 1 && NommoLighting.levelFactor(percent: 0)
                         == NommoLighting.levelFactor(percent: 5) && NommoLighting.levelFactor(percent: 50) < 0.5,
                      "the slider bottoms out at 5 % and its middle looks half as bright")

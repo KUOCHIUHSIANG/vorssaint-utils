@@ -41,6 +41,8 @@ final class NommoService: ObservableObject {
     @Published private(set) var lightingColor: NommoColor
     /// The brightness slider, in percent.
     @Published private(set) var lightingLevel: Int
+    /// Colors added with "+", after the built-in swatches.
+    @Published private(set) var customColors: [NommoColor]
 
     private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "neptater", category: "nommo")
     private static let readAttempts = 3
@@ -73,6 +75,8 @@ final class NommoService: ObservableObject {
             .flatMap(NommoColor.init(hex:)) ?? NommoLighting.defaultColor
         let level = UserDefaults.standard.integer(forKey: DefaultsKey.nommoLightingLevel)
         lightingLevel = NommoLighting.levelRange.contains(level) ? level : NommoLighting.levelRange.upperBound
+        customColors = NommoLighting.decodeCustomColors(
+            UserDefaults.standard.string(forKey: DefaultsKey.nommoLightingCustomColors))
     }
 
     var selection: NommoEQSelection { NommoEQSelection(state: state.eq, presets: presets) }
@@ -285,6 +289,31 @@ final class NommoService: ObservableObject {
             UserDefaults.standard.set(NommoLighting.solid.rawValue, forKey: DefaultsKey.nommoLighting)
         }
         drawChosenLighting()
+    }
+
+    /// Adds a color after the others and returns its place, or nil when full.
+    func addCustomColor(_ color: NommoColor) -> Int? {
+        guard customColors.count < NommoLighting.maxCustomColors else { return nil }
+        customColors.append(color)
+        saveCustomColors()
+        return customColors.count - 1
+    }
+
+    func updateCustomColor(at index: Int, to color: NommoColor) {
+        guard customColors.indices.contains(index) else { return }
+        customColors[index] = color
+        saveCustomColors()
+    }
+
+    func removeCustomColor(at index: Int) {
+        guard customColors.indices.contains(index) else { return }
+        customColors.remove(at: index)
+        saveCustomColors()
+    }
+
+    private func saveCustomColors() {
+        UserDefaults.standard.set(NommoLighting.encodeCustomColors(customColors),
+                                  forKey: DefaultsKey.nommoLightingCustomColors)
     }
 
     /// Takes effect on the next frame, so a slider drag is followed live.

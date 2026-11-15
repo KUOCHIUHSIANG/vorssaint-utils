@@ -466,6 +466,26 @@ enum NommoLighting: String, CaseIterable {
         NommoColor(hex: "#9B4DFF")!, NommoColor(hex: "#FF4FB8")!,
     ]
 
+    /// Colors added with "+", after the swatches; at most one more row of them.
+    static let maxCustomColors = 9
+
+    /// Saved as "#RRGGBB,#RRGGBB", skipping anything unreadable or repeated,
+    /// including a repeat of a fixed swatch.
+    static func decodeCustomColors(_ storage: String?) -> [NommoColor] {
+        var colors: [NommoColor] = []
+        for part in (storage ?? "").split(separator: ",") {
+            guard let color = NommoColor(hex: part.trimmingCharacters(in: .whitespaces)),
+                  !swatches.contains(color), !colors.contains(color),
+                  colors.count < maxCustomColors else { continue }
+            colors.append(color)
+        }
+        return colors
+    }
+
+    static func encodeCustomColors(_ colors: [NommoColor]) -> String {
+        colors.prefix(maxCustomColors).map(\.hex).joined(separator: ",")
+    }
+
     static func clampedBrightness(_ level: Int) -> Int { min(max(level, 0), fullBrightness) }
 
     /// The slider's percentage as a factor on each channel, even to the eye.

@@ -37,7 +37,9 @@ struct NommoFeatureStrings {
     let lightingSolid: String
     let lightingColor: String
     let brightness: String
-    let customColor: String
+    let addColor: String
+    let deleteColor: String
+    let deleteHint: String
 
     func presetName(_ preset: NommoEQPreset) -> String {
         switch preset {
@@ -135,7 +137,9 @@ extension NommoFeatureStrings {
         lightingSolid: "Solid",
         lightingColor: "Color",
         brightness: "Brightness",
-        customColor: "Custom color…")
+        addColor: "Add color…",
+        deleteColor: "Delete Color",
+        deleteHint: "Right-click to delete")
 
     static let ptBR = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -171,7 +175,9 @@ extension NommoFeatureStrings {
         lightingSolid: "Cor única",
         lightingColor: "Cor",
         brightness: "Brilho",
-        customColor: "Cor personalizada…")
+        addColor: "Adicionar cor…",
+        deleteColor: "Apagar cor",
+        deleteHint: "Clique com o botão direito para apagar")
 
     static let tr = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -207,7 +213,9 @@ extension NommoFeatureStrings {
         lightingSolid: "Tek renk",
         lightingColor: "Renk",
         brightness: "Parlaklık",
-        customColor: "Özel renk…")
+        addColor: "Renk ekle…",
+        deleteColor: "Rengi sil",
+        deleteHint: "Silmek için sağ tıklayın")
 
     static let ru = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -243,7 +251,9 @@ extension NommoFeatureStrings {
         lightingSolid: "Один цвет",
         lightingColor: "Цвет",
         brightness: "Яркость",
-        customColor: "Свой цвет…")
+        addColor: "Добавить цвет…",
+        deleteColor: "Удалить цвет",
+        deleteHint: "Нажмите правой кнопкой, чтобы удалить")
 
     static let es = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -279,7 +289,9 @@ extension NommoFeatureStrings {
         lightingSolid: "Color fijo",
         lightingColor: "Color",
         brightness: "Brillo",
-        customColor: "Color personalizado…")
+        addColor: "Añadir color…",
+        deleteColor: "Eliminar color",
+        deleteHint: "Haz clic derecho para eliminarlo")
 
     static let sk = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -315,7 +327,9 @@ extension NommoFeatureStrings {
         lightingSolid: "Jedna farba",
         lightingColor: "Farba",
         brightness: "Jas",
-        customColor: "Vlastná farba…")
+        addColor: "Pridať farbu…",
+        deleteColor: "Vymazať farbu",
+        deleteHint: "Vymažete ju pravým kliknutím")
 
     static let de = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -351,7 +365,9 @@ extension NommoFeatureStrings {
         lightingSolid: "Einfarbig",
         lightingColor: "Farbe",
         brightness: "Helligkeit",
-        customColor: "Eigene Farbe …")
+        addColor: "Farbe hinzufügen …",
+        deleteColor: "Farbe löschen",
+        deleteHint: "Zum Löschen rechtsklicken")
 
     static let fr = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -387,7 +403,9 @@ extension NommoFeatureStrings {
         lightingSolid: "Couleur unie",
         lightingColor: "Couleur",
         brightness: "Luminosité",
-        customColor: "Couleur personnalisée…")
+        addColor: "Ajouter une couleur…",
+        deleteColor: "Supprimer la couleur",
+        deleteHint: "Clic droit pour la supprimer")
 
     static let it = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -423,7 +441,9 @@ extension NommoFeatureStrings {
         lightingSolid: "Tinta unita",
         lightingColor: "Colore",
         brightness: "Luminosità",
-        customColor: "Colore personalizzato…")
+        addColor: "Aggiungi colore…",
+        deleteColor: "Elimina colore",
+        deleteHint: "Fai clic destro per eliminarlo")
 
     static let ja = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -459,7 +479,9 @@ extension NommoFeatureStrings {
         lightingSolid: "単色",
         lightingColor: "カラー",
         brightness: "明るさ",
-        customColor: "カスタムカラー…")
+        addColor: "カラーを追加…",
+        deleteColor: "カラーを削除",
+        deleteHint: "右クリックで削除")
 
     static let ko = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -495,7 +517,9 @@ extension NommoFeatureStrings {
         lightingSolid: "단색",
         lightingColor: "색상",
         brightness: "밝기",
-        customColor: "사용자 지정 색상…")
+        addColor: "색상 추가…",
+        deleteColor: "색상 삭제",
+        deleteHint: "오른쪽 클릭으로 삭제")
 
     static let uk = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -531,7 +555,9 @@ extension NommoFeatureStrings {
         lightingSolid: "Один колір",
         lightingColor: "Колір",
         brightness: "Яскравість",
-        customColor: "Власний колір…")
+        addColor: "Додати колір…",
+        deleteColor: "Видалити колір",
+        deleteHint: "Клацніть правою кнопкою, щоб видалити")
 
     static let zhHans = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -567,7 +593,9 @@ extension NommoFeatureStrings {
         lightingSolid: "单色",
         lightingColor: "颜色",
         brightness: "亮度",
-        customColor: "自定颜色…")
+        addColor: "添加颜色…",
+        deleteColor: "删除颜色",
+        deleteHint: "右键点按可删除")
 
     static let zhTW = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -603,7 +631,9 @@ extension NommoFeatureStrings {
         lightingSolid: "單色",
         lightingColor: "顏色",
         brightness: "亮度",
-        customColor: "自訂顏色…")
+        addColor: "新增顏色…",
+        deleteColor: "刪除顏色",
+        deleteHint: "按右鍵可以刪除")
 
     static let zhHK = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -639,5 +669,7 @@ extension NommoFeatureStrings {
         lightingSolid: "單色",
         lightingColor: "顏色",
         brightness: "亮度",
-        customColor: "自訂顏色…")
+        addColor: "新增顏色…",
+        deleteColor: "刪除顏色",
+        deleteHint: "按右鍵可以刪除")
 }

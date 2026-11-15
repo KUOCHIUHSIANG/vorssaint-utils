@@ -476,6 +476,7 @@ enum DefaultsKey {
     // The solid color (#RRGGBB) and the brightness slider in percent.
     static let nommoLightingColor = "nommoLightingColor"
     static let nommoLightingLevel = "nommoLightingLevel"
+    static let nommoLightingCustomColors = "nommoLightingCustomColors"
     // System monitor — per-metric history graphs (each independently toggleable).
     static let monitorGraphCPU = "monitorGraphCPU"
     static let monitorGraphGPU = "monitorGraphGPU"
@@ -1757,6 +1758,7 @@ enum Defaults {
         DefaultsKey.nommoLightingBrightness: NommoLighting.fullBrightness,
         DefaultsKey.nommoLightingColor: NommoLighting.defaultColor.hex,
         DefaultsKey.nommoLightingLevel: NommoLighting.levelRange.upperBound,
+        DefaultsKey.nommoLightingCustomColors: "",
         DefaultsKey.panelNavigationEnabled: true,
         DefaultsKey.monitorGraphCPU: true,
         DefaultsKey.monitorGraphGPU: true,
