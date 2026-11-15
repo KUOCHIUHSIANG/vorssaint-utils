@@ -1,0 +1,579 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Jater
+
+import Foundation
+
+struct RGBLightingFeatureStrings {
+    let title: String
+    let hubDescription: String
+    let panelDescription: String
+    let showInPanel: String
+    let lighting: String
+    let off: String
+    let cycle: String
+    let wave: String
+    let solid: String
+    let breathing: String
+    let rainbowBreathing: String
+    let meteor: String
+    let lightning: String
+    let lightningHint: String
+    let direction: String
+    let directionDown: String
+    let directionUp: String
+    let directionRight: String
+    let directionLeft: String
+    let color: String
+    let brightness: String
+    let addColor: String
+    let deleteColor: String
+    let deleteHint: String
+    let caption: String
+    let devices: String
+    let connected: String
+    let notConnected: String
+    let unsupportedFormat: String
+    let noAnswer: String
+    let monitor: String
+
+    func modeName(_ mode: RGBLightingMode) -> String {
+        switch mode {
+        case .off: return off
+        case .solid: return solid
+        case .breathing: return breathing
+        case .cycle: return cycle
+        case .rainbowBreathing: return rainbowBreathing
+        case .wave: return wave
+        case .meteor: return meteor
+        case .lightning: return lightning
+        }
+    }
+
+    func directionName(_ direction: RGBWaveDirection) -> String {
+        switch direction {
+        case .down: return directionDown
+        case .up: return directionUp
+        case .right: return directionRight
+        case .left: return directionLeft
+        }
+    }
+}
+
+extension FeatureStrings {
+    static func rgbLighting(_ language: AppLanguage) -> RGBLightingFeatureStrings {
+        switch language {
+        case .enUS: return .enUS
+        case .ptBR: return .ptBR
+        case .tr: return .tr
+        case .ru: return .ru
+        case .es: return .es
+        case .sk: return .sk
+        case .de: return .de
+        case .fr: return .fr
+        case .it: return .it
+        case .ja: return .ja
+        case .ko: return .ko
+        case .uk: return .uk
+        case .zhHans: return .zhHans
+        case .zhTW: return .zhTW
+        case .zhHK: return .zhHK
+        }
+    }
+}
+
+extension RGBLightingFeatureStrings {
+    static let enUS = RGBLightingFeatureStrings(
+        title: "RGB Lighting",
+        hubDescription: "Lights the Razer Nommo V2 speakers and the MSI monitor together, over USB",
+        panelDescription: "Speaker and monitor lighting, in step",
+        showInPanel: "Show RGB Lighting in the panel",
+        lighting: "Lighting",
+        off: "Off",
+        cycle: "Spectrum",
+        wave: "Rainbow wave",
+        solid: "Solid",
+        breathing: "Breathing",
+        rainbowBreathing: "Rainbow breathing",
+        meteor: "Meteor",
+        lightning: "Lightning",
+        lightningHint: "The color is the background; the lightning is white.",
+        direction: "Direction",
+        directionDown: "Top to bottom",
+        directionUp: "Bottom to top",
+        directionRight: "Left to right",
+        directionLeft: "Right to left",
+        color: "Color",
+        brightness: "Brightness",
+        addColor: "Add color…",
+        deleteColor: "Delete Color",
+        deleteHint: "Right-click to delete",
+        caption: "Kept on this Mac and drawn by Neptater, so the speakers and the monitor stay in step. After a device powers up, and 3 seconds after a Razer built-in EQ mode shows its color, the lights return to this.",
+        devices: "Devices",
+        connected: "Connected",
+        notConnected: "Not connected",
+        unsupportedFormat: "Lighting layout %d isn’t supported",
+        noAnswer: "The monitor didn’t answer",
+        monitor: "MSI monitor")
+
+    static let ptBR = RGBLightingFeatureStrings(
+        title: "Iluminação RGB",
+        hubDescription: "Ilumina as caixas Razer Nommo V2 e o monitor MSI juntos, pelo USB",
+        panelDescription: "Iluminação das caixas e do monitor, em sincronia",
+        showInPanel: "Mostrar Iluminação RGB no painel",
+        lighting: "Iluminação",
+        off: "Desligada",
+        cycle: "Espectro",
+        wave: "Onda arco-íris",
+        solid: "Cor única",
+        breathing: "Respiração",
+        rainbowBreathing: "Respiração arco-íris",
+        meteor: "Meteoro",
+        lightning: "Relâmpago",
+        lightningHint: "A cor é o fundo; o relâmpago é branco.",
+        direction: "Direção",
+        directionDown: "De cima para baixo",
+        directionUp: "De baixo para cima",
+        directionRight: "Da esquerda para a direita",
+        directionLeft: "Da direita para a esquerda",
+        color: "Cor",
+        brightness: "Brilho",
+        addColor: "Adicionar cor…",
+        deleteColor: "Apagar cor",
+        deleteHint: "Clique com o botão direito para apagar",
+        caption: "Fica neste Mac e é desenhada pelo Neptater, para que caixas e monitor fiquem em sincronia. Depois que um aparelho liga, e 3 segundos depois de um modo de EQ embutido da Razer mostrar sua cor, as luzes voltam a isto.",
+        devices: "Dispositivos",
+        connected: "Conectadas",
+        notConnected: "Não conectado",
+        unsupportedFormat: "O layout de iluminação %d não é compatível",
+        noAnswer: "O monitor não respondeu",
+        monitor: "Monitor MSI")
+
+    static let tr = RGBLightingFeatureStrings(
+        title: "RGB Aydınlatma",
+        hubDescription: "Razer Nommo V2 hoparlörleri ve MSI monitörü USB üzerinden birlikte aydınlatır",
+        panelDescription: "Hoparlör ve monitör aydınlatması, eş zamanlı",
+        showInPanel: "RGB Aydınlatma’yı panelde göster",
+        lighting: "Aydınlatma",
+        off: "Kapalı",
+        cycle: "Spektrum",
+        wave: "Gökkuşağı dalgası",
+        solid: "Tek renk",
+        breathing: "Nefes",
+        rainbowBreathing: "Gökkuşağı nefesi",
+        meteor: "Meteor",
+        lightning: "Şimşek",
+        lightningHint: "Renk arka plandır; şimşek beyazdır.",
+        direction: "Yön",
+        directionDown: "Yukarıdan aşağı",
+        directionUp: "Aşağıdan yukarı",
+        directionRight: "Soldan sağa",
+        directionLeft: "Sağdan sola",
+        color: "Renk",
+        brightness: "Parlaklık",
+        addColor: "Renk ekle…",
+        deleteColor: "Rengi sil",
+        deleteHint: "Silmek için sağ tıklayın",
+        caption: "Bu Mac’te saklanır ve Neptater tarafından çizilir, böylece hoparlörler ile monitör uyumlu kalır. Bir cihaz açıldıktan sonra ve bir Razer yerleşik EQ modu rengini 3 saniye gösterdikten sonra ışıklar buna döner.",
+        devices: "Cihazlar",
+        connected: "Bağlı",
+        notConnected: "Bağlı değil",
+        unsupportedFormat: "%d aydınlatma düzeni desteklenmiyor",
+        noAnswer: "Monitör yanıt vermedi",
+        monitor: "MSI monitör")
+
+    static let ru = RGBLightingFeatureStrings(
+        title: "RGB-подсветка",
+        hubDescription: "Согласованно управляет подсветкой колонок Razer Nommo V2 и монитора MSI по USB",
+        panelDescription: "Подсветка колонок и монитора, синхронно",
+        showInPanel: "Показывать RGB-подсветку в панели",
+        lighting: "Подсветка",
+        off: "Выкл.",
+        cycle: "Спектр",
+        wave: "Радужная волна",
+        solid: "Один цвет",
+        breathing: "Дыхание",
+        rainbowBreathing: "Радужное дыхание",
+        meteor: "Метеор",
+        lightning: "Молния",
+        lightningHint: "Цвет задаёт фон, молния белая.",
+        direction: "Направление",
+        directionDown: "Сверху вниз",
+        directionUp: "Снизу вверх",
+        directionRight: "Слева направо",
+        directionLeft: "Справа налево",
+        color: "Цвет",
+        brightness: "Яркость",
+        addColor: "Добавить цвет…",
+        deleteColor: "Удалить цвет",
+        deleteHint: "Нажмите правой кнопкой, чтобы удалить",
+        caption: "Хранится на этом Mac и рисуется Neptater, поэтому колонки и монитор работают синхронно. После включения устройства и через 3 секунды после того, как встроенный режим EQ Razer покажет свой цвет, подсветка возвращается к этой.",
+        devices: "Устройства",
+        connected: "Подключены",
+        notConnected: "Не подключено",
+        unsupportedFormat: "Схема подсветки %d не поддерживается",
+        noAnswer: "Монитор не ответил",
+        monitor: "Монитор MSI")
+
+    static let es = RGBLightingFeatureStrings(
+        title: "Iluminación RGB",
+        hubDescription: "Ilumina a la vez los altavoces Razer Nommo V2 y el monitor MSI por USB",
+        panelDescription: "Iluminación de altavoces y monitor, sincronizada",
+        showInPanel: "Mostrar Iluminación RGB en el panel",
+        lighting: "Iluminación",
+        off: "Apagada",
+        cycle: "Espectro",
+        wave: "Onda arcoíris",
+        solid: "Color fijo",
+        breathing: "Respiración",
+        rainbowBreathing: "Respiración arcoíris",
+        meteor: "Meteoro",
+        lightning: "Relámpago",
+        lightningHint: "El color es el fondo; el relámpago es blanco.",
+        direction: "Dirección",
+        directionDown: "De arriba abajo",
+        directionUp: "De abajo arriba",
+        directionRight: "De izquierda a derecha",
+        directionLeft: "De derecha a izquierda",
+        color: "Color",
+        brightness: "Brillo",
+        addColor: "Añadir color…",
+        deleteColor: "Eliminar color",
+        deleteHint: "Haz clic derecho para eliminarlo",
+        caption: "Se guarda en este Mac y la dibuja Neptater, así altavoces y monitor van sincronizados. Tras encender un dispositivo, y 3 segundos después de que un modo de EQ integrado de Razer muestre su color, las luces vuelven a esto.",
+        devices: "Dispositivos",
+        connected: "Conectados",
+        notConnected: "No conectado",
+        unsupportedFormat: "El diseño de iluminación %d no es compatible",
+        noAnswer: "El monitor no respondió",
+        monitor: "Monitor MSI")
+
+    static let sk = RGBLightingFeatureStrings(
+        title: "RGB osvetlenie",
+        hubDescription: "Osvetľuje reproduktory Razer Nommo V2 a monitor MSI spoločne cez USB",
+        panelDescription: "Osvetlenie reproduktorov a monitora, synchronizované",
+        showInPanel: "Zobraziť RGB osvetlenie v paneli",
+        lighting: "Osvetlenie",
+        off: "Vypnuté",
+        cycle: "Spektrum",
+        wave: "Dúhová vlna",
+        solid: "Jedna farba",
+        breathing: "Dýchanie",
+        rainbowBreathing: "Dúhové dýchanie",
+        meteor: "Meteor",
+        lightning: "Blesk",
+        lightningHint: "Farba je pozadie, blesk je biely.",
+        direction: "Smer",
+        directionDown: "Zhora nadol",
+        directionUp: "Zdola nahor",
+        directionRight: "Zľava doprava",
+        directionLeft: "Sprava doľava",
+        color: "Farba",
+        brightness: "Jas",
+        addColor: "Pridať farbu…",
+        deleteColor: "Vymazať farbu",
+        deleteHint: "Vymažete ju pravým kliknutím",
+        caption: "Uložené v tomto Macu a kreslené aplikáciou Neptater, takže reproduktory a monitor idú spolu. Po zapnutí zariadenia a 3 sekundy po tom, ako vstavaný režim EQ od Razer ukáže svoju farbu, sa svetlá vrátia k tomuto.",
+        devices: "Zariadenia",
+        connected: "Pripojené",
+        notConnected: "Nepripojené",
+        unsupportedFormat: "Rozloženie osvetlenia %d nie je podporované",
+        noAnswer: "Monitor neodpovedal",
+        monitor: "Monitor MSI")
+
+    static let de = RGBLightingFeatureStrings(
+        title: "RGB-Beleuchtung",
+        hubDescription: "Beleuchtet die Lautsprecher Razer Nommo V2 und den MSI-Monitor gemeinsam per USB",
+        panelDescription: "Beleuchtung von Lautsprechern und Monitor, im Gleichtakt",
+        showInPanel: "RGB-Beleuchtung im Panel zeigen",
+        lighting: "Beleuchtung",
+        off: "Aus",
+        cycle: "Spektrum",
+        wave: "Regenbogenwelle",
+        solid: "Einfarbig",
+        breathing: "Atmen",
+        rainbowBreathing: "Regenbogen-Atmen",
+        meteor: "Meteor",
+        lightning: "Blitz",
+        lightningHint: "Die Farbe ist der Hintergrund, der Blitz ist weiß.",
+        direction: "Richtung",
+        directionDown: "Von oben nach unten",
+        directionUp: "Von unten nach oben",
+        directionRight: "Von links nach rechts",
+        directionLeft: "Von rechts nach links",
+        color: "Farbe",
+        brightness: "Helligkeit",
+        addColor: "Farbe hinzufügen …",
+        deleteColor: "Farbe löschen",
+        deleteHint: "Zum Löschen rechtsklicken",
+        caption: "Auf diesem Mac gespeichert und von Neptater gezeichnet, damit Lautsprecher und Monitor im Gleichtakt bleiben. Nach dem Einschalten eines Geräts und 3 Sekunden nachdem ein integrierter EQ-Modus von Razer seine Farbe zeigt, kehren die Lichter hierzu zurück.",
+        devices: "Geräte",
+        connected: "Verbunden",
+        notConnected: "Nicht verbunden",
+        unsupportedFormat: "Beleuchtungslayout %d wird nicht unterstützt",
+        noAnswer: "Der Monitor hat nicht geantwortet",
+        monitor: "MSI-Monitor")
+
+    static let fr = RGBLightingFeatureStrings(
+        title: "Éclairage RGB",
+        hubDescription: "Éclaire ensemble les enceintes Razer Nommo V2 et l’écran MSI, en USB",
+        panelDescription: "Éclairage des enceintes et de l’écran, synchronisé",
+        showInPanel: "Afficher Éclairage RGB dans le panneau",
+        lighting: "Éclairage",
+        off: "Éteint",
+        cycle: "Spectre",
+        wave: "Vague arc-en-ciel",
+        solid: "Couleur unie",
+        breathing: "Respiration",
+        rainbowBreathing: "Respiration arc-en-ciel",
+        meteor: "Météore",
+        lightning: "Éclair",
+        lightningHint: "La couleur sert de fond, l’éclair est blanc.",
+        direction: "Direction",
+        directionDown: "De haut en bas",
+        directionUp: "De bas en haut",
+        directionRight: "De gauche à droite",
+        directionLeft: "De droite à gauche",
+        color: "Couleur",
+        brightness: "Luminosité",
+        addColor: "Ajouter une couleur…",
+        deleteColor: "Supprimer la couleur",
+        deleteHint: "Clic droit pour la supprimer",
+        caption: "Enregistré sur ce Mac et dessiné par Neptater, pour que les enceintes et l’écran restent synchronisés. Après l’allumage d’un appareil, et 3 secondes après qu’un mode EQ intégré de Razer a montré sa couleur, l’éclairage revient à ce réglage.",
+        devices: "Appareils",
+        connected: "Connectées",
+        notConnected: "Non connecté",
+        unsupportedFormat: "La disposition d’éclairage %d n’est pas prise en charge",
+        noAnswer: "L’écran n’a pas répondu",
+        monitor: "Écran MSI")
+
+    static let it = RGBLightingFeatureStrings(
+        title: "Illuminazione RGB",
+        hubDescription: "Illumina insieme gli altoparlanti Razer Nommo V2 e il monitor MSI via USB",
+        panelDescription: "Illuminazione di altoparlanti e monitor, sincronizzata",
+        showInPanel: "Mostra Illuminazione RGB nel pannello",
+        lighting: "Illuminazione",
+        off: "Spenta",
+        cycle: "Spettro",
+        wave: "Onda arcobaleno",
+        solid: "Tinta unita",
+        breathing: "Respiro",
+        rainbowBreathing: "Respiro arcobaleno",
+        meteor: "Meteora",
+        lightning: "Fulmine",
+        lightningHint: "Il colore fa da sfondo, il fulmine è bianco.",
+        direction: "Direzione",
+        directionDown: "Dall’alto in basso",
+        directionUp: "Dal basso in alto",
+        directionRight: "Da sinistra a destra",
+        directionLeft: "Da destra a sinistra",
+        color: "Colore",
+        brightness: "Luminosità",
+        addColor: "Aggiungi colore…",
+        deleteColor: "Elimina colore",
+        deleteHint: "Fai clic destro per eliminarlo",
+        caption: "Salvata su questo Mac e disegnata da Neptater, così altoparlanti e monitor restano sincronizzati. Dopo l’accensione di un dispositivo, e 3 secondi dopo che una modalità EQ integrata Razer ha mostrato il suo colore, le luci tornano a questa.",
+        devices: "Dispositivi",
+        connected: "Connessi",
+        notConnected: "Non connesso",
+        unsupportedFormat: "Il layout di illuminazione %d non è supportato",
+        noAnswer: "Il monitor non ha risposto",
+        monitor: "Monitor MSI")
+
+    static let ja = RGBLightingFeatureStrings(
+        title: "RGB ライティング",
+        hubDescription: "Razer Nommo V2 スピーカーと MSI モニターのライティングを USB でまとめて制御します",
+        panelDescription: "スピーカーとモニターのライティングを同期",
+        showInPanel: "パネルに RGB ライティングを表示",
+        lighting: "ライティング",
+        off: "オフ",
+        cycle: "スペクトラム",
+        wave: "レインボーウェーブ",
+        solid: "単色",
+        breathing: "呼吸",
+        rainbowBreathing: "レインボー呼吸",
+        meteor: "流星",
+        lightning: "稲妻",
+        lightningHint: "色が背景になり、稲妻は白で光ります。",
+        direction: "方向",
+        directionDown: "上から下",
+        directionUp: "下から上",
+        directionRight: "左から右",
+        directionLeft: "右から左",
+        color: "カラー",
+        brightness: "明るさ",
+        addColor: "カラーを追加…",
+        deleteColor: "カラーを削除",
+        deleteHint: "右クリックで削除",
+        caption: "この Mac に保存され、Neptater が描画するので、スピーカーとモニターが同期します。デバイスの電源を入れたあとや、Razer の内蔵 EQ モードが色を 3 秒表示したあとは、この設定に戻ります。",
+        devices: "デバイス",
+        connected: "接続済み",
+        notConnected: "未接続",
+        unsupportedFormat: "ライティングの配置 %d には対応していません",
+        noAnswer: "モニターが応答しませんでした",
+        monitor: "MSI モニター")
+
+    static let ko = RGBLightingFeatureStrings(
+        title: "RGB 조명",
+        hubDescription: "Razer Nommo V2 스피커와 MSI 모니터 조명을 USB로 함께 제어합니다",
+        panelDescription: "스피커와 모니터 조명을 동기화",
+        showInPanel: "패널에 RGB 조명 표시",
+        lighting: "조명",
+        off: "끄기",
+        cycle: "스펙트럼",
+        wave: "무지개 웨이브",
+        solid: "단색",
+        breathing: "숨쉬기",
+        rainbowBreathing: "무지개 숨쉬기",
+        meteor: "유성",
+        lightning: "번개",
+        lightningHint: "색이 배경이 되고 번개는 흰색으로 번쩍입니다.",
+        direction: "방향",
+        directionDown: "위에서 아래로",
+        directionUp: "아래에서 위로",
+        directionRight: "왼쪽에서 오른쪽으로",
+        directionLeft: "오른쪽에서 왼쪽으로",
+        color: "색상",
+        brightness: "밝기",
+        addColor: "색상 추가…",
+        deleteColor: "색상 삭제",
+        deleteHint: "오른쪽 클릭으로 삭제",
+        caption: "이 Mac에 저장되고 Neptater가 그리므로 스피커와 모니터가 함께 움직입니다. 기기를 켠 뒤, 그리고 Razer 내장 EQ 모드가 색을 3초 보여 준 뒤에는 이 설정으로 돌아옵니다.",
+        devices: "기기",
+        connected: "연결됨",
+        notConnected: "연결 안 됨",
+        unsupportedFormat: "조명 배치 %d은(는) 지원되지 않습니다",
+        noAnswer: "모니터가 응답하지 않았습니다",
+        monitor: "MSI 모니터")
+
+    static let uk = RGBLightingFeatureStrings(
+        title: "RGB-підсвічування",
+        hubDescription: "Узгоджено керує підсвічуванням колонок Razer Nommo V2 і монітора MSI через USB",
+        panelDescription: "Підсвічування колонок і монітора, синхронно",
+        showInPanel: "Показувати RGB-підсвічування на панелі",
+        lighting: "Підсвічування",
+        off: "Вимк.",
+        cycle: "Спектр",
+        wave: "Райдужна хвиля",
+        solid: "Один колір",
+        breathing: "Дихання",
+        rainbowBreathing: "Райдужне дихання",
+        meteor: "Метеор",
+        lightning: "Блискавка",
+        lightningHint: "Колір задає тло, блискавка біла.",
+        direction: "Напрямок",
+        directionDown: "Згори донизу",
+        directionUp: "Знизу догори",
+        directionRight: "Зліва направо",
+        directionLeft: "Справа наліво",
+        color: "Колір",
+        brightness: "Яскравість",
+        addColor: "Додати колір…",
+        deleteColor: "Видалити колір",
+        deleteHint: "Клацніть правою кнопкою, щоб видалити",
+        caption: "Зберігається на цьому Mac і малюється Neptater, тож колонки й монітор працюють синхронно. Після ввімкнення пристрою та через 3 секунди після того, як вбудований режим EQ Razer покаже свій колір, підсвічування повертається до цього.",
+        devices: "Пристрої",
+        connected: "Під’єднано",
+        notConnected: "Не під’єднано",
+        unsupportedFormat: "Схема підсвічування %d не підтримується",
+        noAnswer: "Монітор не відповів",
+        monitor: "Монітор MSI")
+
+    static let zhHans = RGBLightingFeatureStrings(
+        title: "RGB 灯光",
+        hubDescription: "通过 USB 同时控制 Razer Nommo V2 音箱和 MSI 显示器的灯光",
+        panelDescription: "音箱和显示器的灯光，同步变化",
+        showInPanel: "在面板中显示 RGB 灯光",
+        lighting: "灯光",
+        off: "关闭",
+        cycle: "彩虹循环",
+        wave: "彩虹波浪",
+        solid: "单色",
+        breathing: "呼吸",
+        rainbowBreathing: "彩虹呼吸",
+        meteor: "流星",
+        lightning: "闪电",
+        lightningHint: "颜色是底色，闪电是白色。",
+        direction: "方向",
+        directionDown: "上往下",
+        directionUp: "下往上",
+        directionRight: "左往右",
+        directionLeft: "右往左",
+        color: "颜色",
+        brightness: "亮度",
+        addColor: "添加颜色…",
+        deleteColor: "删除颜色",
+        deleteHint: "右键点按可删除",
+        caption: "保存在这台 Mac 上，由 Neptater 逐帧绘制，音箱和显示器会同步。设备开机后，以及 Razer 内置 EQ 显示该模式颜色 3 秒后，都会恢复成这里的设置。",
+        devices: "设备",
+        connected: "已连接",
+        notConnected: "未连接",
+        unsupportedFormat: "不支持灯光格式 %d",
+        noAnswer: "显示器没有回应",
+        monitor: "MSI 显示器")
+
+    static let zhTW = RGBLightingFeatureStrings(
+        title: "RGB 燈光",
+        hubDescription: "透過 USB 同時控制 Razer Nommo V2 喇叭和 MSI 螢幕的燈光",
+        panelDescription: "喇叭和螢幕的燈光，同步變化",
+        showInPanel: "在面板中顯示 RGB 燈光",
+        lighting: "燈光",
+        off: "關閉",
+        cycle: "彩虹循環",
+        wave: "彩虹波浪",
+        solid: "單色",
+        breathing: "呼吸",
+        rainbowBreathing: "彩虹呼吸",
+        meteor: "流星",
+        lightning: "閃電",
+        lightningHint: "顏色是底色，閃電是白色。",
+        direction: "方向",
+        directionDown: "上往下",
+        directionUp: "下往上",
+        directionRight: "左往右",
+        directionLeft: "右往左",
+        color: "顏色",
+        brightness: "亮度",
+        addColor: "新增顏色…",
+        deleteColor: "刪除顏色",
+        deleteHint: "按右鍵可以刪除",
+        caption: "存在這台 Mac 上，由 Neptater 逐格繪製，喇叭和螢幕會同步。裝置開機後，以及 Razer 內建 EQ 顯示該模式顏色 3 秒後，都會恢復成這裡的設定。",
+        devices: "裝置",
+        connected: "已連線",
+        notConnected: "未連接",
+        unsupportedFormat: "不支援燈光格式 %d",
+        noAnswer: "螢幕沒有回應",
+        monitor: "MSI 螢幕")
+
+    static let zhHK = RGBLightingFeatureStrings(
+        title: "RGB 燈光",
+        hubDescription: "透過 USB 同時控制 Razer Nommo V2 喇叭和 MSI 顯示器的燈光",
+        panelDescription: "喇叭和顯示器的燈光，同步變化",
+        showInPanel: "在面板中顯示 RGB 燈光",
+        lighting: "燈光",
+        off: "關閉",
+        cycle: "彩虹循環",
+        wave: "彩虹波浪",
+        solid: "單色",
+        breathing: "呼吸",
+        rainbowBreathing: "彩虹呼吸",
+        meteor: "流星",
+        lightning: "閃電",
+        lightningHint: "顏色是底色，閃電是白色。",
+        direction: "方向",
+        directionDown: "上往下",
+        directionUp: "下往上",
+        directionRight: "左往右",
+        directionLeft: "右往左",
+        color: "顏色",
+        brightness: "亮度",
+        addColor: "新增顏色…",
+        deleteColor: "刪除顏色",
+        deleteHint: "按右鍵可以刪除",
+        caption: "儲存在這部 Mac 上，由 Neptater 逐格繪製，喇叭和顯示器會同步。裝置開機後，以及 Razer 內置 EQ 顯示該模式顏色 3 秒後，都會恢復成這裡的設定。",
+        devices: "裝置",
+        connected: "已連接",
+        notConnected: "未連接",
+        unsupportedFormat: "不支援燈光格式 %d",
+        noAnswer: "顯示器沒有回應",
+        monitor: "MSI 顯示器")
+}

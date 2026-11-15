@@ -142,6 +142,7 @@ struct MetricsTests {
                 MenuPanelSectionGateContract.run(suite)
             }),
             ("nommo", { NommoSupportTests.run(suite) }),
+            ("rgb-lighting", { RGBLightingSupportTests.run(suite) }),
             ("shortcut-clearing", { ShortcutClearingTests.run(suite) }),
             ("utilities", {
                 UtilitiesFeatureTests.run(suite)

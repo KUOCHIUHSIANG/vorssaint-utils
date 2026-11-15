@@ -46,7 +46,7 @@ enum NommoSupportTests {
         let every: [NommoCommand] = [
             .readFirmware, .readSubwoofer, .writeSubwoofer(1), .readEQMode, .selectBuiltIn(.game), .readEQCurve,
             .writeEQCurve(.flat), .readAutoStandby, .writeAutoStandby(true), .readStandbyDelay,
-            .writeStandbyDelay(.fifteen), .enterFrameMode, .fillFrame(red: 0, green: 0, blue: 0), .resumeAnimation,
+            .writeStandbyDelay(.fifteen), .enterFrameMode, .frame([]), .resumeAnimation,
             .readBrightness, .writeBrightness(128),
         ]
         let known: Set<[UInt8]> = [[0x00, 0x87], [0x08, 0x87], [0x08, 0x07], [0x08, 0x82], [0x08, 0x02],
@@ -136,87 +136,20 @@ enum NommoSupportTests {
 
         // MARK: Lighting
 
-        let off = NommoProtocol.request(.fillFrame(red: 0, green: 0, blue: 0))
+        let off = NommoProtocol.request(.frame([]))
         suite.expect(off[6] == 0x29 && Array(off[9..<14]) == [0x00, 0x00, 0x00, 0x00, 0x0B]
                         && off[14..<50].allSatisfy { $0 == 0 },
-                     "an off frame is twelve black LEDs after the frame header")
-        let red = NommoCommand.fillFrame(red: 0xFF, green: 0x10, blue: 0x00).arguments
-        suite.expect(red.count == 5 + 36 && Array(red[5..<8]) == [0xFF, 0x10, 0x00] && Array(red[38..<41]) == [0xFF, 0x10, 0x00],
-                     "a frame repeats the color for all twelve LEDs")
+                     "an empty frame is twelve black LEDs after the frame header")
+        let mixed = NommoCommand.frame([RGBColor(red: 0xFF, green: 0x10, blue: 0), RGBColor(red: 0, green: 0, blue: 0xEE)]
+                                       + Array(repeating: .black, count: 20)).arguments
+        suite.expect(mixed.count == 5 + 36 && Array(mixed[5..<8]) == [0xFF, 0x10, 0x00]
+                        && Array(mixed[8..<11]) == [0x00, 0x00, 0xEE] && mixed[11...].allSatisfy { $0 == 0 },
+                     "a frame carries one color per LED, twelve at most")
         suite.expect(NommoCommand.resumeAnimation.arguments == [0x00, 0x00, 0x00]
                         && NommoCommand.enterFrameMode.arguments == [0x00, 0x00, 0x08, 0x00, 0x01],
                      "frame mode and the animation use the arguments confirmed on the speaker")
-
-        // Colors
-        suite.expect(NommoColor(hue: 0) == NommoColor(red: 255, green: 0, blue: 0)
-                        && NommoColor(hue: 120) == NommoColor(red: 0, green: 255, blue: 0)
-                        && NommoColor(hue: 420) == NommoColor(hue: 60), "hues wrap round the color wheel")
-        for mode in NommoBuiltInMode.allCases {
-            let hue = mode.indicatorColor.hue ?? -1
-            suite.expect(NommoColor(hue: hue) == mode.indicatorColor,
-                         "the \(mode.razerName) color can start a rainbow at its own hue")
-        }
-        suite.expect(NommoColor.black.hue == nil, "black has no hue")
-        suite.expect(NommoColor(red: 200, green: 100, blue: 0).scaled(0.5) == NommoColor(red: 100, green: 50, blue: 0),
-                     "scaling dims every channel alike")
-
-        // Drawn programs
-        let music = NommoBuiltInMode.music.indicatorColor
-        let fadeOff = NommoLightingProgram(target: .off, start: .color(music), began: 100)
-        suite.expect(fadeOff.frame(at: 100).color == music && fadeOff.frame(at: 100).moving,
-                     "off starts from the mode's color, so taking over shows no jump")
-        suite.expect(fadeOff.frame(at: 100.5).color.red < music.red / 2 && fadeOff.frame(at: 100.5).moving,
-                     "off fades the color out, under half way at the halfway point")
-        suite.expect(fadeOff.frame(at: 101).color == .black && !fadeOff.frame(at: 101).moving,
-                     "off ends black and stops drawing")
-        let fromMusic = NommoLightingProgram(target: .spectrum, start: .color(music), began: 0)
-        suite.expect(fromMusic.frame(at: 0).color == music, "the rainbow starts on the mode's own color")
-        let quarter = NommoLighting.rainbowPeriod / 4
-        suite.expect(fromMusic.frame(at: quarter).color == NommoColor(hue: 90) && fromMusic.frame(at: quarter).moving,
-                     "the rainbow flows on from there without a fade")
-        let fromBlack = NommoLightingProgram(target: .spectrum, start: .black, began: 0)
-        suite.expect(fromBlack.frame(at: 0).color == .black, "a rainbow from off fades in from black")
-        suite.expect(fromBlack.frame(at: NommoLighting.fadeDuration).color
-                        == NommoColor(hue: 360 * NommoLighting.fadeDuration / NommoLighting.rainbowPeriod),
-                     "after the fade in the rainbow is at full strength")
-        suite.expect(NommoLightingProgram(target: .off, start: .black, began: 0).frame(at: 0) == (.black, false),
-                     "off from off draws one black frame and stops")
-        suite.expect(NommoLighting.frameInterval >= 1.0 / 30, "frames are paced, never sent back to back")
-
-        // Solid color and brightness
-        let green = NommoColor(hex: "#22E05A")!
-        suite.expect(green.hex == "#22E05A" && NommoColor(hex: "22e05a") == green && NommoColor(hex: "#12345") == nil,
-                     "a color saves as #RRGGBB and reads back")
-        suite.expect(NommoLighting.swatches.count == 9 && Set(NommoLighting.swatches.map(\.hex)).count == 9,
-                     "nine distinct swatches")
-        let added = NommoLighting.decodeCustomColors("#123456, #abcdef,#123456,#FFFFFF,nope,#12345")
-        suite.expect(added.map(\.hex) == ["#123456", "#ABCDEF"],
-                     "added colors read back once each, without repeats of a fixed swatch or unreadable ones")
-        suite.expect(NommoLighting.encodeCustomColors(added) == "#123456,#ABCDEF"
-                        && NommoLighting.decodeCustomColors(NommoLighting.encodeCustomColors(added)) == added
-                        && NommoLighting.decodeCustomColors(nil).isEmpty && NommoLighting.decodeCustomColors("").isEmpty,
-                     "added colors save and read back unchanged")
-        let many = (1...12).map { NommoColor(red: UInt8($0), green: 0, blue: 0) }
-        suite.expect(NommoLighting.decodeCustomColors(NommoLighting.encodeCustomColors(many)).count
-                        == NommoLighting.maxCustomColors, "at most nine colors can be added")
-        suite.expect(NommoLighting.levelFactor(percent: 100) == 1 && NommoLighting.levelFactor(percent: 0)
-                        == NommoLighting.levelFactor(percent: 5) && NommoLighting.levelFactor(percent: 50) < 0.5,
-                     "the slider bottoms out at 5 % and its middle looks half as bright")
-        let solidIn = NommoLightingProgram(target: .solid, color: green, start: .black, began: 0)
-        suite.expect(solidIn.frame(at: 0).color == .black && solidIn.frame(at: 1).color == green
-                        && !solidIn.frame(at: 1).moving, "a solid color fades in from off, then holds")
-        let crossFade = NommoLightingProgram(target: .solid, color: green, start: .color(music), began: 0)
-        suite.expect(crossFade.frame(at: 0).color == music && crossFade.frame(at: 1).color == green,
-                     "a solid color cross-fades from the mode's color")
-        let middle = crossFade.frame(at: 0.5).color
-        suite.expect(middle != music && middle != green && crossFade.frame(at: 0.5).moving,
-                     "half way through, the cross-fade is between the two")
-        suite.expect(solidIn.frame(at: 2, level: 0.5).color == green.scaled(0.5),
-                     "the brightness scales the settled color")
-        let dimRainbow = NommoLightingProgram(target: .spectrum, start: .color(music), began: 0)
-        suite.expect(dimRainbow.frame(at: 0, level: 0.4).color == music
-                        && dimRainbow.frame(at: 2, level: 0.4).color == NommoColor(hue: 72).scaled(0.4),
-                     "a rainbow from a mode's color starts at full strength and eases to the brightness")
+        suite.expect(NommoBuiltInMode.allCases.allSatisfy { $0.indicatorColor.hue != nil },
+                     "each built-in mode's color is a hue, as the speakers show it")
         suite.expect(NommoLighting.eqColorHold == 3, "the strings promise a built-in mode's color shows for 3 seconds")
         suite.expect(NommoCommand.writeBrightness(300).arguments == [0x01, 0x00, 0xFF]
                         && NommoCommand.readBrightness.arguments == [0x01, 0x00],

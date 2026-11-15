@@ -1175,6 +1175,7 @@ extension AppFeature {
         case .micMute: return s.micMuteName
         case .musicBlock: return hub.titleMusicBlock
         case .nommo: return FeatureStrings.nommo(language).title
+        case .rgbLighting: return FeatureStrings.rgbLighting(language).title
         case .keepAwake: return s.keepAwakeTitle
         case .brightness: return FeatureStrings.brightness(language).pageTitle
         case .extraBrightness: return s.extraBrightnessName
@@ -1263,6 +1264,7 @@ extension AppFeature {
         case .micMute: return hub.descMicMute
         case .musicBlock: return hub.descMusicBlock
         case .nommo: return FeatureStrings.nommo(L10n.shared.language).hubDescription
+        case .rgbLighting: return FeatureStrings.rgbLighting(L10n.shared.language).hubDescription
         case .keepAwake: return hub.descKeepAwake
         case .brightness: return FeatureStrings.brightness(L10n.shared.language).hubDescription
         case .extraBrightness: return hub.descExtraBrightness

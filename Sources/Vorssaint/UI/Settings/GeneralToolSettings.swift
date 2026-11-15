@@ -53,6 +53,9 @@ struct GeneralToolSettings: View {
                 case .nommo:
                     NommoSettings()
                         .settingsSectionAnchor(.nommo, cornerRadius: 16)
+                case .rgbLighting:
+                    RGBLightingSettings()
+                        .settingsSectionAnchor(.rgbLighting, cornerRadius: 16)
                 default:
                     EmptyView()
                 }

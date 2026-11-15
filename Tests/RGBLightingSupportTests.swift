@@ -1,0 +1,180 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Jater
+
+import Foundation
+
+enum RGBLightingSupportTests {
+    private static func settings(_ mode: RGBLightingMode, _ direction: RGBWaveDirection = .down,
+                                 color: RGBColor = RGBLighting.defaultColor) -> RGBLightingChoice {
+        RGBLightingChoice(mode: mode, direction: direction, color: color, level: 100)
+    }
+
+    static func run(_ suite: TestSuite) {
+        // MARK: Colors
+
+        suite.expect(RGBColor(hue: 0) == RGBColor(red: 255, green: 0, blue: 0)
+                        && RGBColor(hue: 120) == RGBColor(red: 0, green: 255, blue: 0)
+                        && RGBColor(hue: 420) == RGBColor(hue: 60) && RGBColor(hue: -60) == RGBColor(hue: 300),
+                     "hues wrap round the color wheel")
+        suite.expect(RGBColor.black.hue == nil, "black has no hue")
+        suite.expect(RGBColor(red: 200, green: 100, blue: 0).scaled(0.5) == RGBColor(red: 100, green: 50, blue: 0),
+                     "scaling dims every channel alike")
+        let green = RGBColor(hex: "#22E05A")!
+        suite.expect(green.hex == "#22E05A" && RGBColor(hex: "22e05a") == green && RGBColor(hex: "#12345") == nil,
+                     "a color saves as #RRGGBB and reads back")
+        suite.expect(RGBLighting.swatches.count == 9 && Set(RGBLighting.swatches.map(\.hex)).count == 9,
+                     "nine distinct swatches")
+        let added = RGBLighting.decodeCustomColors("#123456, #abcdef,#123456,#FFFFFF,nope,#12345")
+        suite.expect(added.map(\.hex) == ["#123456", "#ABCDEF"],
+                     "added colors read back once each, without repeats of a fixed swatch or unreadable ones")
+        suite.expect(RGBLighting.encodeCustomColors(added) == "#123456,#ABCDEF"
+                        && RGBLighting.decodeCustomColors(RGBLighting.encodeCustomColors(added)) == added
+                        && RGBLighting.decodeCustomColors(nil).isEmpty && RGBLighting.decodeCustomColors("").isEmpty,
+                     "added colors save and read back unchanged")
+        let many = (1...12).map { RGBColor(red: UInt8($0), green: 0, blue: 0) }
+        suite.expect(RGBLighting.decodeCustomColors(RGBLighting.encodeCustomColors(many)).count
+                        == RGBLighting.maxCustomColors, "at most nine colors can be added")
+        suite.expect(RGBLighting.levelFactor(percent: 100) == 1 && RGBLighting.levelFactor(percent: 0)
+                        == RGBLighting.levelFactor(percent: 5) && RGBLighting.levelFactor(percent: 50) < 0.5,
+                     "the slider bottoms out at 5 % and its middle looks half as bright")
+        suite.expect(RGBLighting.frameInterval >= 1.0 / 30, "frames are paced, never sent back to back")
+
+        // MARK: The desk
+
+        let nommo = RGBDesk.nommo, monitor = RGBDesk.msiMonitor
+        suite.expect(nommo.count == 12 && nommo[0..<6].allSatisfy { $0.x == 1 } && nommo[6...].allSatisfy { $0.x == 0 }
+                        && nommo.allSatisfy { $0.y == 1 },
+                     "speaker LEDs 0-5 light the right wall, 6-11 the left, both down on the desk")
+        suite.expect(monitor.count == 22 && monitor.first?.y == 0 && zip(monitor, monitor.dropFirst()).allSatisfy { $0.y < $1.y }
+                        && monitor.allSatisfy { $0.x == 0.5 && $0.y < 1 },
+                     "the monitor's 22 rows run from its top down, above the speakers, left and right alike")
+        suite.expect(RGBLightPosition(x: 0.2, y: 0.3).progress(along: .down) == 0.3
+                        && RGBLightPosition(x: 0.2, y: 0.3).progress(along: .up) == 0.7
+                        && RGBLightPosition(x: 0.2, y: 0.3).progress(along: .right) == 0.2
+                        && RGBLightPosition(x: 0.2, y: 0.3).progress(along: .left) == 0.8,
+                     "each direction measures from where the wave starts")
+        suite.expect(RGBLightingMode.allCases.filter(\.usesColor) == [.solid, .breathing, .meteor, .lightning]
+                        && RGBLightingMode.allCases.filter(\.usesDirection) == [.wave, .meteor]
+                        && RGBLightingMode.allCases.filter { !$0.moves } == [.off, .solid],
+                     "only the modes that use a color or a direction ask for one")
+
+        // MARK: Fades
+
+        let music = NommoBuiltInMode.music.indicatorColor
+        let fromMusic = Array(repeating: music, count: 12)
+        let fadeOff = RGBLightingProgram(settings(.off), start: fromMusic, began: 100)
+        suite.expect(fadeOff.frame(at: 100, lights: nommo) == (fromMusic, true),
+                     "off starts from the mode's color, so taking over shows no jump")
+        suite.expect(fadeOff.frame(at: 100.5, lights: nommo).colors[0].red < music.red / 2,
+                     "off fades the color out, under half way at the halfway point")
+        suite.expect(fadeOff.frame(at: 101, lights: nommo) == (Array(repeating: .black, count: 12), false),
+                     "off ends black and stops drawing")
+        suite.expect(RGBLightingProgram(settings(.off), start: nil, began: 0).frame(at: 0, lights: nommo)
+                        == (Array(repeating: .black, count: 12), false),
+                     "off from off draws one black frame and stops")
+        let solidIn = RGBLightingProgram(settings(.solid, color: green), start: nil, began: 0)
+        suite.expect(solidIn.frame(at: 0, lights: monitor).colors.allSatisfy { $0 == .black }
+                        && solidIn.frame(at: 1, lights: monitor) == (Array(repeating: green, count: 22), false),
+                     "a solid color fades in from off, then holds")
+        let crossFade = RGBLightingProgram(settings(.solid, color: green), start: fromMusic, began: 0)
+        let middle = crossFade.frame(at: 0.5, lights: nommo)
+        suite.expect(crossFade.frame(at: 0, lights: nommo).colors == fromMusic && middle.moving
+                        && middle.colors[0] != music && middle.colors[0] != green,
+                     "a solid color cross-fades from the mode's color")
+        suite.expect(solidIn.frame(at: 2, level: 0.5, lights: monitor).colors[0] == green.scaled(0.5),
+                     "the brightness scales the settled color")
+        suite.expect(RGBLightingProgram(settings(.solid), start: [music], began: 0).frame(at: 0, lights: nommo).colors[0]
+                        == .black,
+                     "start colors for another device are ignored and the fade starts from black")
+
+        // MARK: In step
+
+        let cycleSpeakers = RGBLightingProgram(settings(.cycle), start: fromMusic, began: 3)
+        let cycleMonitor = RGBLightingProgram(settings(.cycle), start: nil, began: 1)
+        let at = 7.5
+        let expected = RGBColor(hue: RGBLighting.rainbowHue(at: at))
+        suite.expect(cycleSpeakers.frame(at: at, lights: nommo).colors.allSatisfy { $0 == expected }
+                        && cycleMonitor.frame(at: at, lights: monitor).colors.allSatisfy { $0 == expected },
+                     "devices that started at different times show the same rainbow color, from the shared clock")
+        suite.expect(cycleSpeakers.frame(at: 3, lights: nommo).colors == fromMusic,
+                     "the rainbow picks up from the mode's color, then joins the others")
+        suite.expect(RGBLighting.rainbowHue(at: RGBLighting.rainbowPeriod / 4) == 90, "the rainbow goes round once a period")
+
+        let waveDown = RGBLightingProgram(settings(.wave, .down), start: nil, began: 0)
+        let top = waveDown.frame(at: 5, lights: monitor).colors
+        let speakers = waveDown.frame(at: 5, lights: nommo).colors
+        let base = RGBLighting.rainbowHue(at: 5)
+        suite.expect(top[0] == RGBColor(hue: base) && top[21] == RGBColor(hue: base - RGBLighting.waveSpread * 0.8)
+                        && speakers.allSatisfy { $0 == RGBColor(hue: base - RGBLighting.waveSpread) },
+                     "top to bottom, the monitor runs down the rainbow and both speakers follow on below it")
+        let waveRight = RGBLightingProgram(settings(.wave, .right), start: nil, began: 0)
+        let rightMonitor = waveRight.frame(at: 5, lights: monitor).colors
+        let rightSpeakers = waveRight.frame(at: 5, lights: nommo).colors
+        suite.expect(Set(rightMonitor.map(\.hex)).count == 1 && rightSpeakers[6] == RGBColor(hue: base)
+                        && rightSpeakers[0] == RGBColor(hue: base - RGBLighting.waveSpread),
+                     "left to right, the monitor is one color between the left speaker and the right")
+
+        // MARK: Effects
+
+        suite.expect(RGBLighting.breath(at: 0) == 0 && abs(RGBLighting.breath(at: RGBLighting.breathPeriod / 2) - 1) < 1e-9,
+                     "a breath is dark at its start and full halfway")
+        let hues = stride(from: 0.0, to: RGBLighting.breathPeriod * 3, by: 0.05).map(RGBLighting.breathHue)
+        let changes = zip(hues, hues.dropFirst()).enumerated().filter { $0.element.0 != $0.element.1 }.map { $0.offset + 1 }
+        suite.expect(changes.count == 2 && changes.allSatisfy {
+                        RGBLighting.breath(at: Double($0) * 0.05) < 0.01 },
+                     "a rainbow breath changes color only while dark, once per breath")
+        suite.expect(RGBLighting.breathHue(at: RGBLighting.breathPeriod * 1.5) == 60, "each breath takes the next sixth of the wheel")
+        let atHead = (0..<100).map { Double($0) / 100 * RGBLighting.meteorPeriod }
+            .map { time in RGBLighting.meteor(at: time, progress: 0.5) }
+        suite.expect(atHead.contains { $0 > 0.9 } && atHead.contains(0),
+                     "a meteor passes each light once a period, full at its head")
+        suite.expect(RGBLighting.meteor(at: RGBLighting.meteorPeriod * 0.25, progress: 0.9) == 0,
+                     "nothing lights ahead of the meteor")
+        let samples = stride(from: 0.0, to: 600, by: 0.02).map(RGBLighting.lightning)
+        let lit = samples.filter { $0 > 0.5 }.count
+        suite.expect(lit > 0 && Double(lit) / Double(samples.count) < 0.1,
+                     "lightning strikes now and then, and the background shows most of the time")
+        suite.expect(RGBLighting.lightning(at: 123.45) == RGBLighting.lightning(at: 123.45)
+                        && (0..<1000).allSatisfy { (0..<1).contains(RGBLighting.chance($0, 1)) },
+                     "lightning depends only on the clock, so every device flashes together")
+        let red = RGBColor(red: 255, green: 0, blue: 0)
+        let strike = stride(from: 0.0, to: 600, by: 0.02).first { RGBLighting.lightning(at: $0) == 1 }
+        let storm = RGBLightingProgram(settings(.lightning, color: red), start: nil, began: 0)
+        let calm = stride(from: 2.0, to: 600, by: 0.02).first { RGBLighting.lightning(at: $0) == 0 }
+        suite.expect(calm.map { storm.frame(at: $0, lights: nommo).colors[0] == red } == true
+                        && strike.map { storm.frame(at: max($0, 2), lights: nommo).colors[0] } != nil,
+                     "between strikes the lights show the chosen color")
+        if let strike, strike >= 1 {
+            suite.expect(storm.frame(at: strike, lights: nommo).colors[0] == RGBLighting.defaultColor,
+                         "a strike flashes white")
+        }
+
+        // MARK: MSI monitor
+
+        let query = MSIMonitorProtocol.layoutQuery
+        suite.expect(query.count == 64 && query[0] == 0x01 && query[1] == 0xB0 && query[2...].allSatisfy { $0 == 0 },
+                     "the layout query is 0xB0 on report 0x01")
+        suite.expect(MSIMonitorProtocol.layout(fromReply: [0x01, 0x5A, 0x63, 0x2A] + Array(repeating: 0, count: 60)) == 42
+                        && MSIMonitorProtocol.layout(fromReply: [0x01, 0x00, 0x63, 0x2A]) == nil,
+                     "the answer Jater's monitor gives reads as layout 42")
+        let rainbow = (0..<22).map { RGBColor(hue: Double($0) * 15) }
+        let frame = MSIMonitorProtocol.frame(rainbow)
+        suite.expect(frame.count == 168 && frame[0] == 0x72 && Array(frame[1...11]) == Array(frame[12...22])
+                        && frame[1] == 0x01 && frame[6] == 100 && frame[10] == 0x80,
+                     "a frame is static, full brightness, painted from the LED colors, in both control blocks")
+        suite.expect(frame[23..<95].allSatisfy { $0 == 0 } && frame[167] == 0
+                        && Array(frame[95..<98]) == [rainbow[0].red, rainbow[0].green, rainbow[0].blue],
+                     "only the second color array is used, and nothing is written to flash")
+        suite.expect(MSIMonitorProtocol.isDrawnFrame(frame) && MSIMonitorProtocol.colors(in: frame) == rainbow,
+                     "a drawn frame read back gives its colors to fade on from")
+        var own = [UInt8](repeating: 0, count: 168)
+        own.replaceSubrange(0..<23, with: [0x72, 0x1A, 0xFF, 0xFF, 0xFF, 0x01, 0x64, 0x00, 0xFF, 0x00, 0x00, 0x00,
+                                           0x1A, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00])
+        own[167] = 0x82
+        let back = MSIMonitorProtocol.handBack(own)
+        suite.expect(!MSIMonitorProtocol.isDrawnFrame(own) && back?[167] == 0 && back.map { Array($0[..<167]) } == Array(own[..<167]),
+                     "the monitor's own Rainbow Wave, as read, goes back unchanged and without a flash write")
+        suite.expect(MSIMonitorProtocol.handBack(frame) == nil && MSIMonitorProtocol.colors(in: own) == nil,
+                     "a drawn frame is never kept as the monitor's own effect")
+    }
+}

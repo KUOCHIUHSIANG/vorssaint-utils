@@ -4,9 +4,9 @@
 import SwiftUI
 
 /// Panel section with every Nommo V2 control, so nothing needs Settings: the
-/// subwoofer level, the EQ with its curve to drag, lighting and standby. It
-/// reads the speaker each time it appears, so the panel shows what the
-/// speaker actually has.
+/// subwoofer level, the EQ with its curve to drag, and standby (its lighting is
+/// under RGB lighting, with the monitor's). It reads the speaker each time it
+/// appears, so the panel shows what the speaker actually has.
 struct NommoSection: View {
     @ObservedObject private var l10n = L10n.shared
     @ObservedObject private var service = NommoService.shared
@@ -40,24 +40,6 @@ struct NommoSection: View {
                     }
                     NommoEQEditor()
                         .controlSize(.small)
-                    Divider()
-                    HStack {
-                        Text(strings.lighting)
-                            .font(.system(size: 11.5, weight: .medium))
-                        Spacer(minLength: 8)
-                        NommoLightingPicker()
-                            .controlSize(.small)
-                            .frame(width: 190)
-                    }
-                    .help(strings.lightingCaption)
-                    if service.lighting == .solid {
-                        NommoLightingColorRow()
-                    }
-                    if service.lighting != .off {
-                        NommoLightingLevelSlider()
-                            .controlSize(.small)
-                            .font(.system(size: 10.5))
-                    }
                     Divider()
                     standby
                     if service.failure != nil {

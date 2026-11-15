@@ -133,6 +133,7 @@ private extension PanelSectionID {
         case .toggles: return text.sectionToggles
         case .wallpaper: return FeatureStrings.wallpaper(L10n.shared.language).panelDescription
         case .nommo: return FeatureStrings.nommo(L10n.shared.language).panelDescription
+        case .rgbLighting: return FeatureStrings.rgbLighting(L10n.shared.language).panelDescription
         }
     }
 }

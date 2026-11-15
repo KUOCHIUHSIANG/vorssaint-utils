@@ -14,9 +14,9 @@ import os
 ///
 /// The speaker keeps its subwoofer level, EQ and standby settings while off,
 /// so connecting only reads them. Its lighting it can neither keep nor report,
-/// so Neptater stores the chosen lighting and draws it frame by frame (see
-/// `NommoLighting`), taking over again after a power-up or a built-in EQ
-/// mode's color. Nothing polls: state refreshes when the panel or Settings
+/// so while RGB lighting is on, Neptater draws the chosen lighting frame by
+/// frame (see `RGBLighting`), taking over again after a power-up or a built-in
+/// EQ mode's color. Nothing polls: state refreshes when the panel or Settings
 /// shows it.
 final class NommoService: ObservableObject {
     static let shared = NommoService()
@@ -37,12 +37,6 @@ final class NommoService: ObservableObject {
     @Published private(set) var state = State()
     @Published private(set) var failure: Failure?
     @Published private(set) var presets: [NommoEQPreset: NommoEQCurve]
-    @Published private(set) var lighting: NommoLighting
-    @Published private(set) var lightingColor: NommoColor
-    /// The brightness slider, in percent.
-    @Published private(set) var lightingLevel: Int
-    /// Colors added with "+", after the built-in swatches.
-    @Published private(set) var customColors: [NommoColor]
 
     private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "neptater", category: "nommo")
     private static let readAttempts = 3
@@ -57,11 +51,13 @@ final class NommoService: ObservableObject {
     private var pendingCurve: DispatchWorkItem?
     private var pendingLighting: DispatchWorkItem?
     private var observers: [NSObjectProtocol] = []
+    /// Whether this service draws the RGB lighting; main thread.
+    private var drawsLighting = false
 
     // Drawing state, touched only on `queue`.
     private var drawingDevice: IOHIDDevice?
-    private var program: NommoLightingProgram?
-    private var drawnColor: NommoColor?
+    private var program: RGBLightingProgram?
+    private var drawnColors: [RGBColor]?
     /// Whether the speakers show host frames; a power-up or a built-in mode ends it.
     private var inFrameMode = false
     private var frameTimer: DispatchSourceTimer?
@@ -69,14 +65,6 @@ final class NommoService: ObservableObject {
 
     private init() {
         presets = NommoEQPresetStore.decode(UserDefaults.standard.string(forKey: DefaultsKey.nommoEQPresets))
-        lighting = UserDefaults.standard.string(forKey: DefaultsKey.nommoLighting)
-            .flatMap(NommoLighting.init(rawValue:)) ?? .off
-        lightingColor = UserDefaults.standard.string(forKey: DefaultsKey.nommoLightingColor)
-            .flatMap(NommoColor.init(hex:)) ?? NommoLighting.defaultColor
-        let level = UserDefaults.standard.integer(forKey: DefaultsKey.nommoLightingLevel)
-        lightingLevel = NommoLighting.levelRange.contains(level) ? level : NommoLighting.levelRange.upperBound
-        customColors = NommoLighting.decodeCustomColors(
-            UserDefaults.standard.string(forKey: DefaultsKey.nommoLightingCustomColors))
     }
 
     var selection: NommoEQSelection { NommoEQSelection(state: state.eq, presets: presets, preferring: presetInUse) }
@@ -84,8 +72,19 @@ final class NommoService: ObservableObject {
 
     // MARK: - Lifecycle
 
+    /// Runs for the speaker's own controls, or to draw RGB lighting.
     func syncWithPreferences() {
-        AppFeature.nommo.isAvailable ? start() : stop()
+        guard AppFeature.nommo.isAvailable || RGBLightingService.shared.isActive else {
+            if drawsLighting { handBackLighting(always: true) }
+            drawsLighting = false
+            stop()
+            return
+        }
+        start()
+        let draws = RGBLightingService.shared.isActive
+        guard draws != drawsLighting else { return }
+        drawsLighting = draws
+        draws ? drawChosenLighting() : handBackLighting(always: true)
     }
 
     private func start() {
@@ -117,7 +116,7 @@ final class NommoService: ObservableObject {
             },
             NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification,
                                                    object: nil, queue: .main) { [weak self] _ in
-                self?.handBackLighting()
+                self?.handBackLighting(always: false)
             },
         ]
     }
@@ -148,11 +147,11 @@ final class NommoService: ObservableObject {
         failure = nil
         refresh()
         // The speakers run their own power-up animation first; take over after it.
+        guard drawsLighting else { return }
         schedule(after: NommoLighting.connectSettle) { [weak self] in
-            guard let self, let device = self.device else { return }
-            let lighting = self.lighting, color = self.lightingColor
-            let level = NommoLighting.levelFactor(percent: self.lightingLevel)
-            self.queue.async { self.takeOver(lighting, color: color, level: level, on: device) }
+            guard let self, self.drawsLighting, let device = self.device else { return }
+            let settings = RGBLightingService.shared.settings
+            self.queue.async { self.takeOver(settings, on: device) }
         }
     }
 
@@ -223,21 +222,22 @@ final class NommoService: ObservableObject {
         case let .builtIn(mode):
             guard let device else { return }
             presetInUse = nil
-            // Stop drawing first, or the next frame would cover the mode's color.
-            pendingLighting?.cancel()
-            queue.async { [weak self] in self?.yield(to: mode) }
+            if drawsLighting {
+                // Stop drawing first, or the next frame would cover the mode's color.
+                pendingLighting?.cancel()
+                queue.async { [weak self] in self?.yield(to: mode) }
+            }
             perform { exchange in
                 _ = try exchange(.selectBuiltIn(mode))
                 return try Self.readState(exchange)
             }
             // The mode's color shows for a moment, then flows into the chosen lighting.
+            guard drawsLighting else { return }
             schedule(after: NommoLighting.eqColorHold) { [weak self] in
-                guard let self else { return }
-                let lighting = self.lighting, color = self.lightingColor
-                let level = NommoLighting.levelFactor(percent: self.lightingLevel)
-                self.queue.async {
-                    self.draw(lighting, color: color, level: level, from: .color(mode.indicatorColor), on: device)
-                }
+                guard let self, self.drawsLighting else { return }
+                let settings = RGBLightingService.shared.settings
+                let indicator = Array(repeating: mode.indicatorColor, count: NommoLighting.ledCount)
+                self.queue.async { self.draw(settings, from: indicator, on: device) }
             }
         case let .preset(preset):
             guard let curve = presets[preset] else { return }
@@ -285,54 +285,15 @@ final class NommoService: ObservableObject {
         }
     }
 
-    func setLighting(_ lighting: NommoLighting) {
-        self.lighting = lighting
-        UserDefaults.standard.set(lighting.rawValue, forKey: DefaultsKey.nommoLighting)
+    /// The RGB lighting changed; draw it from whatever shows now.
+    func lightingChanged() {
+        guard drawsLighting else { return }
         drawChosenLighting()
-    }
-
-    /// Picking a color means showing it, so it also switches to a solid color.
-    func setLightingColor(_ color: NommoColor) {
-        lightingColor = color
-        UserDefaults.standard.set(color.hex, forKey: DefaultsKey.nommoLightingColor)
-        if lighting != .solid {
-            lighting = .solid
-            UserDefaults.standard.set(NommoLighting.solid.rawValue, forKey: DefaultsKey.nommoLighting)
-        }
-        drawChosenLighting()
-    }
-
-    /// Adds a color after the others and returns its place, or nil when full.
-    func addCustomColor(_ color: NommoColor) -> Int? {
-        guard customColors.count < NommoLighting.maxCustomColors else { return nil }
-        customColors.append(color)
-        saveCustomColors()
-        return customColors.count - 1
-    }
-
-    func updateCustomColor(at index: Int, to color: NommoColor) {
-        guard customColors.indices.contains(index) else { return }
-        customColors[index] = color
-        saveCustomColors()
-    }
-
-    func removeCustomColor(at index: Int) {
-        guard customColors.indices.contains(index) else { return }
-        customColors.remove(at: index)
-        saveCustomColors()
-    }
-
-    private func saveCustomColors() {
-        UserDefaults.standard.set(NommoLighting.encodeCustomColors(customColors),
-                                  forKey: DefaultsKey.nommoLightingCustomColors)
     }
 
     /// Takes effect on the next frame, so a slider drag is followed live.
-    func setLightingLevel(_ percent: Int) {
-        let percent = min(max(percent, NommoLighting.levelRange.lowerBound), NommoLighting.levelRange.upperBound)
-        lightingLevel = percent
-        UserDefaults.standard.set(percent, forKey: DefaultsKey.nommoLightingLevel)
-        let level = NommoLighting.levelFactor(percent: percent)
+    func lightingLevelChanged() {
+        let level = RGBLighting.levelFactor(percent: RGBLightingService.shared.settings.level)
         queue.async { [weak self] in
             guard let self else { return }
             self.drawingLevel = level
@@ -343,9 +304,8 @@ final class NommoService: ObservableObject {
     private func drawChosenLighting() {
         pendingLighting?.cancel()
         guard let device else { return }
-        let lighting = self.lighting, color = lightingColor
-        let level = NommoLighting.levelFactor(percent: lightingLevel)
-        queue.async { [weak self] in self?.draw(lighting, color: color, level: level, from: nil, on: device) }
+        let settings = RGBLightingService.shared.settings
+        queue.async { [weak self] in self?.draw(settings, from: nil, on: device) }
     }
 
     private func schedule(after delay: TimeInterval, _ work: @escaping () -> Void) {
@@ -357,20 +317,17 @@ final class NommoService: ObservableObject {
 
     // MARK: - Drawing (on `queue` only)
 
-    /// Starts drawing `target`, from `start` or, when nil, from whatever is on
-    /// the LEDs now, so a change of mind mid-fade carries on from there.
-    private func draw(_ target: NommoLighting, color: NommoColor, level: Double,
-                      from start: NommoLightingProgram.Start?, on device: IOHIDDevice) {
+    /// Starts drawing `settings`, from `start` or, when nil, from whatever is
+    /// on the LEDs now, so a change of mind mid-fade carries on from there.
+    private func draw(_ settings: RGBLightingChoice, from start: [RGBColor]?, on device: IOHIDDevice) {
         drawingDevice = device
-        drawingLevel = level
-        let origin = start ?? drawnColor.map { $0 == .black ? .black : .color($0) } ?? .black
-        program = NommoLightingProgram(target: target, color: color, start: origin,
-                                       began: ProcessInfo.processInfo.systemUptime)
+        drawingLevel = RGBLighting.levelFactor(percent: settings.level)
+        let origin = start ?? drawnColors.flatMap { $0.allSatisfy { $0 == .black } ? nil : $0 }
+        program = RGBLightingProgram(settings, start: origin, began: ProcessInfo.processInfo.systemUptime)
         do {
             if !inFrameMode {
                 // Frame first, so entering frame mode shows it rather than an old one.
-                let first = program?.frame(at: ProcessInfo.processInfo.systemUptime, level: level).color ?? .black
-                try sendFrame(first, to: device)
+                try sendFrame(currentFrame().colors, to: device)
                 _ = try Self.exchange(.enterFrameMode, with: device)
                 inFrameMode = true
             }
@@ -384,15 +341,16 @@ final class NommoService: ObservableObject {
 
     /// After a power-up the speakers run their own animation, whose colors
     /// Neptater can't know, so this one fade goes through the brightness.
-    private func takeOver(_ target: NommoLighting, color: NommoColor, level: Double, on device: IOHIDDevice) {
+    private func takeOver(_ settings: RGBLightingChoice, on device: IOHIDDevice) {
         stopDrawing()
         drawingDevice = device
+        let black = Array(repeating: RGBColor.black, count: NommoLighting.ledCount)
         do {
             let brightness = try currentBrightness(on: device)
             try fadeBrightness(from: brightness, to: 0, on: device)
-            try sendFrame(.black, to: device)
+            try sendFrame(black, to: device)
             _ = try Self.exchange(.enterFrameMode, with: device)
-            try sendFrame(.black, to: device)
+            try sendFrame(black, to: device)
             inFrameMode = true
             // Unseen behind black, and where the drawn fade in needs it.
             _ = try Self.exchange(.writeBrightness(brightness), with: device)
@@ -400,7 +358,7 @@ final class NommoService: ObservableObject {
             drawingFailed(error)
             return
         }
-        draw(target, color: color, level: level, from: .black, on: device)
+        draw(settings, from: nil, on: device)
     }
 
     /// A built-in mode takes the LEDs: stop drawing and leave its color showing.
@@ -408,17 +366,22 @@ final class NommoService: ObservableObject {
         stopFrameTimer()
         program = nil
         inFrameMode = false
-        drawnColor = mode.indicatorColor
+        drawnColors = Array(repeating: mode.indicatorColor, count: NommoLighting.ledCount)
+    }
+
+    private func currentFrame() -> (colors: [RGBColor], moving: Bool) {
+        program?.frame(at: ProcessInfo.processInfo.systemUptime, level: drawingLevel, lights: RGBDesk.nommo)
+            ?? (Array(repeating: .black, count: NommoLighting.ledCount), false)
     }
 
     private func drawFrame() {
-        guard let program, let device = drawingDevice else {
+        guard program != nil, let device = drawingDevice else {
             stopFrameTimer()
             return
         }
-        let (color, moving) = program.frame(at: ProcessInfo.processInfo.systemUptime, level: drawingLevel)
+        let (colors, moving) = currentFrame()
         do {
-            if color != drawnColor { try sendFrame(color, to: device) }
+            if colors != drawnColors { try sendFrame(colors, to: device) }
         } catch {
             drawingFailed(error)
             return
@@ -426,14 +389,14 @@ final class NommoService: ObservableObject {
         if !moving { stopFrameTimer() }
     }
 
-    private func sendFrame(_ color: NommoColor, to device: IOHIDDevice) throws {
-        _ = try Self.exchange(.fillFrame(red: color.red, green: color.green, blue: color.blue), with: device)
-        drawnColor = color
+    private func sendFrame(_ colors: [RGBColor], to device: IOHIDDevice) throws {
+        _ = try Self.exchange(.frame(colors), with: device)
+        drawnColors = colors
     }
 
     private func startFrameTimer() {
         let timer = DispatchSource.makeTimerSource(queue: queue)
-        timer.schedule(deadline: .now() + NommoLighting.frameInterval, repeating: NommoLighting.frameInterval,
+        timer.schedule(deadline: .now() + RGBLighting.frameInterval, repeating: RGBLighting.frameInterval,
                        leeway: .milliseconds(2))
         timer.setEventHandler { [weak self] in self?.drawFrame() }
         frameTimer = timer
@@ -448,7 +411,7 @@ final class NommoService: ObservableObject {
     private func stopDrawing() {
         stopFrameTimer()
         program = nil
-        drawnColor = nil
+        drawnColors = nil
         inFrameMode = false
         drawingDevice = nil
     }
@@ -472,12 +435,18 @@ final class NommoService: ObservableObject {
 
     /// On quit a drawn rainbow would freeze, so the speakers' own takes over,
     /// at the brightness the slider set; the next takeover restores theirs.
-    private func handBackLighting() {
-        guard lighting == .spectrum else { return }
-        let level = NommoLighting.levelFactor(percent: lightingLevel)
+    /// When RGB lighting is switched off (`always`), the speakers get their own
+    /// animation back whatever was drawn.
+    private func handBackLighting(always: Bool) {
+        let settings = RGBLightingService.shared.settings
+        guard always || settings.mode.moves else { return }
+        let level = always ? 1 : RGBLighting.levelFactor(percent: settings.level)
+        pendingLighting?.cancel()
         queue.sync {
             guard let device = drawingDevice else { return }
             stopFrameTimer()
+            program = nil
+            inFrameMode = false
             let brightness = (try? currentBrightness(on: device)) ?? NommoLighting.fullBrightness
             _ = try? Self.exchange(.writeBrightness(Int((Double(brightness) * level).rounded())), with: device)
             _ = try? Self.exchange(.resumeAnimation, with: device)
@@ -505,14 +474,14 @@ final class NommoService: ObservableObject {
         let begin = ProcessInfo.processInfo.systemUptime
         var written: Int?
         while true {
-            let progress = min(1, (ProcessInfo.processInfo.systemUptime - begin) / NommoLighting.fadeDuration)
+            let progress = min(1, (ProcessInfo.processInfo.systemUptime - begin) / RGBLighting.fadeDuration)
             let level = NommoLighting.fadeLevel(from: start, to: end, progress: progress)
             if level != written {
                 _ = try Self.exchange(.writeBrightness(level), with: device)
                 written = level
             }
             if progress >= 1 { return }
-            Thread.sleep(forTimeInterval: NommoLighting.frameInterval)
+            Thread.sleep(forTimeInterval: RGBLighting.frameInterval)
         }
     }
 

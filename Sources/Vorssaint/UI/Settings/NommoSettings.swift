@@ -25,28 +25,10 @@ struct NommoSettings: View {
                 }
                 Divider()
                 SettingsRow(symbol: nil, title: strings.equalizer, caption: strings.builtInCaption) {
-                    HStack(spacing: 6) {
-                        NommoEQMenu()
-                    }
+                    NommoEQMenu()
                 }
                 NommoEQEditor(plotHeight: 120, compact: false)
                     .padding(.vertical, 4)
-                Divider()
-                SettingsRow(symbol: nil, title: strings.lighting, caption: strings.lightingCaption) {
-                    NommoLightingPicker()
-                        .frame(width: 240)
-                }
-                if service.lighting == .solid {
-                    SettingsRow(symbol: nil, title: strings.lightingColor) {
-                        NommoLightingColorRow(size: 20)
-                    }
-                }
-                if service.lighting != .off {
-                    SettingsRow(symbol: nil, title: strings.brightness) {
-                        NommoLightingLevelSlider()
-                            .frame(width: 240)
-                    }
-                }
                 Divider()
                 SettingsRow(symbol: nil, title: strings.autoStandby, caption: strings.autoStandbyCaption) {
                     Toggle(strings.autoStandby, isOn: Binding(get: { service.state.autoStandby ?? false },

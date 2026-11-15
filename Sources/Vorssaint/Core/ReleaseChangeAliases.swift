@@ -108,6 +108,7 @@ enum ReleaseChangeAliases {
         case .musicBlock: return ["music app blocker", "replacement for music", "music launch blocking",
             "music from opening", "unwanted music launches"]
         case .nommo: return ["nommo", "razer speakers", "subwoofer level", "speaker equalizer"]
+        case .rgbLighting: return ["rgb lighting", "msi monitor lighting", "speaker lighting", "rainbow wave"]
         case .keepAwake: return ["keep awake", "closed lid mode", "keep going with lid closed", "keep-awake"]
         case .brightness: return [.exact("Displays"), "display brightness", "brightness keys",
             "brightness shortcuts", "control displays", "display controls", "extra dimming", "closed-lid dimming",

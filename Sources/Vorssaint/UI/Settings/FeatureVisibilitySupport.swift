@@ -58,6 +58,7 @@ enum SettingsSectionAnchor: String, CaseIterable, Hashable {
     case cleaningMode
     case soundOutputSwitcher
     case nommo
+    case rgbLighting
     case keyboardBrightnessShortcuts
     case fanControl
     case monitorAlerts
@@ -66,7 +67,7 @@ enum SettingsSectionAnchor: String, CaseIterable, Hashable {
     var page: SettingsPage {
         switch self {
         case .panelConfiguration, .mixer, .audioPriority, .musicBlocking,
-             .soundOutputSwitcher, .nommo:
+             .soundOutputSwitcher, .nommo, .rgbLighting:
             return .general
         case .keepAwake, .brightness, .extraBrightness, .bluetoothSleep: return .energy
         case .scrollDirection, .scrollZoom, .focusFollowsMouse, .smoothScroll, .linearScroll, .scrollSpeed, .mouseAcceleration, .mouseNavigation, .mouseButtonShortcuts,
@@ -385,6 +386,8 @@ extension AppFeature {
             return FeatureSettingsDestination(.general, sectionAnchor: .musicBlocking)
         case .nommo:
             return FeatureSettingsDestination(.general, sectionAnchor: .nommo)
+        case .rgbLighting:
+            return FeatureSettingsDestination(.general, sectionAnchor: .rgbLighting)
 
         case .keepAwake:
             return FeatureSettingsDestination(.energy, sectionAnchor: .keepAwake)

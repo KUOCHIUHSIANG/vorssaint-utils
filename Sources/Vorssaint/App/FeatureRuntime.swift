@@ -314,6 +314,7 @@ final class FeatureRuntime: ObservableObject {
         .quitApps: { QuickTogglesService.shared.syncWithPreferences() },
         .musicBlock: { MusicLaunchBlocker.shared.syncWithPreferences() },
         .nommo: { NommoService.shared.syncWithPreferences() },
+        .rgbLighting: { RGBLightingService.shared.syncWithPreferences() },
         .keepAwake: {
             KeepAwakeManager.shared.syncWithFeatures()
             HotkeyManager.shared.syncWithPreferences()
