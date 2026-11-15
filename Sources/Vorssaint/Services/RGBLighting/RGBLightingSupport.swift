@@ -303,16 +303,22 @@ enum RGBLighting {
 }
 
 /// The picture on the monitor, boiled down for the screen mode: average
-/// colors in a grid of 22 bands from the top, one per monitor row, across 16
-/// columns. Kept as fractions so smoothing loses nothing between frames.
+/// colors in a grid of 22 bands from the top across 16 columns. Kept as
+/// fractions so smoothing loses nothing between frames.
 struct RGBScreenSample: Equatable {
     static let rows = MSIMonitorProtocol.ledCount
     static let columns = 16
-    /// The monitor's lights glow round its sides, so a row reads the outer
-    /// columns on both sides of its band (they light both sides alike).
-    static let edgeColumns = 3
-    /// A speaker lights the wall on its side, so it reads that side of the picture.
-    static let sideColumns = 6
+    /// The monitor's top rows light the wall above it and its bottom rows the
+    /// desk below (Jater's description), so the top row shows the top of the
+    /// picture, the bottom row its bottom, and the rows between blend from one
+    /// to the other: a hard split would show as a line across the lights.
+    static let edgeRows = 5
+    /// A speaker sits low on its side of the desk, so it reads that bottom
+    /// corner of the picture: the outer columns of the lowest bands. Reading
+    /// the whole side let a bright sky outweigh green grass at the bottom
+    /// (Jater, watching a video).
+    static let cornerColumns = 5
+    static let cornerRows = 7
     /// Reflected off the wall, colors wash out; this brings them back.
     static let saturation = 1.3
 
@@ -354,17 +360,19 @@ struct RGBScreenSample: Equatable {
         return RGBScreenSample(channels: zip(channels, newer.channels).map { $0 + ($1 - $0) * share })
     }
 
-    /// What the light at `light` shows: a monitor row its band's edges, a
-    /// speaker on the desk its side of the picture.
+    /// What the light at `light` shows: a monitor row the top and the bottom
+    /// of the picture blended by its height, a speaker on the desk its bottom
+    /// corner.
     func color(for light: RGBLightPosition) -> RGBColor {
         let averaged: RGBColor
         if light.y >= 1 {
-            let side = light.x < 0.5 ? 0..<Self.sideColumns : (Self.columns - Self.sideColumns)..<Self.columns
-            averaged = average(rows: Array(0..<Self.rows), columns: Array(side))
+            let side = light.x < 0.5 ? 0..<Self.cornerColumns : (Self.columns - Self.cornerColumns)..<Self.columns
+            averaged = average(rows: Array((Self.rows - Self.cornerRows)..<Self.rows), columns: Array(side))
         } else {
-            let row = min(Self.rows - 1, max(0, Int((light.y / RGBDesk.monitorHeight * Double(Self.rows - 1)).rounded())))
-            averaged = average(rows: [row], columns: Array(0..<Self.edgeColumns)
-                                   + Array((Self.columns - Self.edgeColumns)..<Self.columns))
+            let everyColumn = Array(0..<Self.columns)
+            let top = average(rows: Array(0..<Self.edgeRows), columns: everyColumn)
+            let bottom = average(rows: Array((Self.rows - Self.edgeRows)..<Self.rows), columns: everyColumn)
+            averaged = top.mixed(with: bottom, RGBLighting.eased(light.y / RGBDesk.monitorHeight))
         }
         return averaged.saturated(by: Self.saturation)
     }
