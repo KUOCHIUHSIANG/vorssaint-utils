@@ -51,6 +51,18 @@ struct RGBColor: Equatable {
         return degrees < 0 ? degrees + 360 : degrees
     }
 
+    /// More (or less) colorful at the same brightness: the channels move
+    /// away from the brightest one by `factor`, up to full saturation.
+    func saturated(by factor: Double) -> RGBColor {
+        let high = Double(max(red, green, blue)), low = Double(min(red, green, blue))
+        guard high > low else { return self }
+        let lowest = max(0, high - (high - low) * factor)
+        func move(_ channel: UInt8) -> UInt8 {
+            UInt8((high - (high - Double(channel)) * (high - lowest) / (high - low)).rounded())
+        }
+        return RGBColor(red: move(red), green: move(green), blue: move(blue))
+    }
+
     func scaled(_ factor: Double) -> RGBColor {
         let share = min(max(factor, 0), 1)
         func scale(_ channel: UInt8) -> UInt8 { UInt8((Double(channel) * share).rounded()) }
@@ -80,7 +92,7 @@ struct RGBColor: Equatable {
 /// on Neptater's clock, so the speakers and the monitor stay in step instead of
 /// each running its own built-in effect.
 enum RGBLightingMode: String, CaseIterable {
-    case off, solid, breathing, cycle, rainbowBreathing, wave, meteor, lightning
+    case off, solid, breathing, cycle, rainbowBreathing, wave, meteor, lightning, screen
 
     /// The modes the menu offers; off is the switch's job.
     static let choosable = allCases.filter { $0 != .off }
@@ -129,8 +141,10 @@ enum RGBDesk {
     /// the left and the right side alike. It spans the monitor's height, above
     /// the speakers.
     static let msiMonitor: [RGBLightPosition] = (0..<MSIMonitorProtocol.ledCount).map {
-        RGBLightPosition(x: 0.5, y: 0.8 * Double($0) / Double(MSIMonitorProtocol.ledCount - 1))
+        RGBLightPosition(x: 0.5, y: monitorHeight * Double($0) / Double(MSIMonitorProtocol.ledCount - 1))
     }
+    /// How far down the desk the monitor's lights reach.
+    static let monitorHeight = 0.8
 }
 
 /// The lighting as chosen in the panel.
@@ -286,6 +300,86 @@ enum RGBLighting {
     }
 }
 
+/// The picture on the monitor, boiled down for the screen mode: average
+/// colors in a grid of 22 bands from the top, one per monitor row, across 16
+/// columns. Kept as fractions so smoothing loses nothing between frames.
+struct RGBScreenSample: Equatable {
+    static let rows = MSIMonitorProtocol.ledCount
+    static let columns = 16
+    /// The monitor's lights glow round its sides, so a row reads the outer
+    /// columns on both sides of its band (they light both sides alike).
+    static let edgeColumns = 3
+    /// A speaker lights the wall on its side, so it reads that side of the picture.
+    static let sideColumns = 6
+    /// Reflected off the wall, colors wash out; this brings them back.
+    static let saturation = 1.3
+
+    /// Red, green and blue per cell, 0 to 255, row by row.
+    private(set) var channels: [Double]
+
+    init(channels: [Double]) {
+        self.channels = channels.count == Self.rows * Self.columns * 3
+            ? channels : Array(repeating: 0, count: Self.rows * Self.columns * 3)
+    }
+
+    /// Averages a BGRA picture (as ScreenCaptureKit delivers it) into the grid.
+    static func averaging(bgra bytes: UnsafeRawBufferPointer, width: Int, height: Int,
+                          bytesPerRow: Int) -> RGBScreenSample {
+        var sums = [Double](repeating: 0, count: rows * columns * 3)
+        var counts = [Double](repeating: 0, count: rows * columns)
+        guard width > 0, height > 0, bytes.count >= bytesPerRow * height else { return RGBScreenSample(channels: sums) }
+        for y in 0..<height {
+            let row = min(rows - 1, y * rows / height)
+            for x in 0..<width {
+                let cell = row * columns + min(columns - 1, x * columns / width)
+                let pixel = y * bytesPerRow + x * 4
+                sums[cell * 3] += Double(bytes[pixel + 2])
+                sums[cell * 3 + 1] += Double(bytes[pixel + 1])
+                sums[cell * 3 + 2] += Double(bytes[pixel])
+                counts[cell] += 1
+            }
+        }
+        for cell in counts.indices where counts[cell] > 0 {
+            for channel in 0..<3 { sums[cell * 3 + channel] /= counts[cell] }
+        }
+        return RGBScreenSample(channels: sums)
+    }
+
+    /// `share` of the way from this picture to `newer`, so the lights follow
+    /// the screen without flickering.
+    func blended(toward newer: RGBScreenSample, share: Double) -> RGBScreenSample {
+        let share = min(max(share, 0), 1)
+        return RGBScreenSample(channels: zip(channels, newer.channels).map { $0 + ($1 - $0) * share })
+    }
+
+    /// What the light at `light` shows: a monitor row its band's edges, a
+    /// speaker on the desk its side of the picture.
+    func color(for light: RGBLightPosition) -> RGBColor {
+        let averaged: RGBColor
+        if light.y >= 1 {
+            let side = light.x < 0.5 ? 0..<Self.sideColumns : (Self.columns - Self.sideColumns)..<Self.columns
+            averaged = average(rows: Array(0..<Self.rows), columns: Array(side))
+        } else {
+            let row = min(Self.rows - 1, max(0, Int((light.y / RGBDesk.monitorHeight * Double(Self.rows - 1)).rounded())))
+            averaged = average(rows: [row], columns: Array(0..<Self.edgeColumns)
+                                   + Array((Self.columns - Self.edgeColumns)..<Self.columns))
+        }
+        return averaged.saturated(by: Self.saturation)
+    }
+
+    private func average(rows: [Int], columns: [Int]) -> RGBColor {
+        var total = [0.0, 0.0, 0.0]
+        for row in rows {
+            for column in columns {
+                for channel in 0..<3 { total[channel] += channels[(row * Self.columns + column) * 3 + channel] }
+            }
+        }
+        let count = Double(max(rows.count * columns.count, 1))
+        func byte(_ value: Double) -> UInt8 { UInt8(min(max(value / count, 0), 255).rounded()) }
+        return RGBColor(red: byte(total[0]), green: byte(total[1]), blue: byte(total[2]))
+    }
+}
+
 /// The time the moving modes run on: the monotonic clock at the chosen
 /// speed. A change of speed leaves every effect where it is and only changes
 /// how fast it goes on from there, and every device reads this one clock, so
@@ -297,6 +391,12 @@ final class RGBLightingClock {
     private var anchor: TimeInterval = 0
     private var effectAtAnchor: TimeInterval = 0
     private var speed = RGBLighting.defaultSpeed
+
+    var currentSpeed: Double {
+        lock.lock()
+        defer { lock.unlock() }
+        return speed
+    }
 
     /// Effect time for `time`, seconds on the monotonic clock.
     func effectTime(at time: TimeInterval) -> TimeInterval {
@@ -340,12 +440,12 @@ struct RGBLightingProgram: Equatable {
     /// and whether later frames will differ. Fades run on `time`; the effects
     /// run on `effectTime` (see `RGBLightingClock`), `time` itself by default.
     func frame(at time: TimeInterval, effectTime: TimeInterval? = nil, level: Double = 1,
-               lights: [RGBLightPosition]) -> (colors: [RGBColor], moving: Bool) {
+               lights: [RGBLightPosition], screen: RGBScreenSample? = nil) -> (colors: [RGBColor], moving: Bool) {
         let fade = max(0, time - began) / RGBLighting.fadeDuration
         let from = start?.count == lights.count ? start : nil
         let effect = effectTime ?? time
         let colors = lights.indices.map { index -> RGBColor in
-            let goal = target(at: effect, light: lights[index]).scaled(level)
+            let goal = target(at: effect, light: lights[index], screen: screen).scaled(level)
             guard fade < 1 else { return goal }
             guard let from else { return goal.scaled(RGBLighting.fadeInFactor(fade)) }
             if mode == .off { return from[index].scaled(RGBLighting.fadeOutFactor(fade)) }
@@ -355,7 +455,7 @@ struct RGBLightingProgram: Equatable {
         return (colors, settling || mode.moves)
     }
 
-    private func target(at time: TimeInterval, light: RGBLightPosition) -> RGBColor {
+    private func target(at time: TimeInterval, light: RGBLightPosition, screen: RGBScreenSample?) -> RGBColor {
         switch mode {
         case .off: return .black
         case .solid: return color
@@ -370,6 +470,8 @@ struct RGBLightingProgram: Equatable {
             return color.scaled(RGBLighting.meteor(at: time, progress: light.progress(along: direction)))
         case .lightning:
             return color.mixed(with: RGBLighting.defaultColor, RGBLighting.lightning(at: time))
+        case .screen:
+            return screen?.color(for: light) ?? .black
         }
     }
 }

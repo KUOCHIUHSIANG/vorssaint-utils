@@ -17,16 +17,22 @@ final class RGBLightingService: ObservableObject {
     private init() {
         let defaults = UserDefaults.standard
         let level = defaults.integer(forKey: DefaultsKey.rgbLightingLevel)
-        let mode = defaults.string(forKey: DefaultsKey.rgbLightingMode).flatMap(RGBLightingMode.init(rawValue:))
+        var mode = defaults.string(forKey: DefaultsKey.rgbLightingMode).flatMap(RGBLightingMode.init(rawValue:))
+        if mode == .off {
+            // Off was a mode before the switch; it is the switch now.
+            defaults.set(false, forKey: DefaultsKey.rgbLightingOn)
+            defaults.set(RGBLightingMode.cycle.rawValue, forKey: DefaultsKey.rgbLightingMode)
+            mode = .cycle
+        }
         settings = RGBLightingChoice(
-            mode: mode.flatMap { $0 == .off ? nil : $0 } ?? .cycle,
+            mode: mode ?? .cycle,
             direction: defaults.string(forKey: DefaultsKey.rgbLightingDirection)
                 .flatMap(RGBWaveDirection.init(rawValue:)) ?? .down,
             color: defaults.string(forKey: DefaultsKey.rgbLightingColor).flatMap(RGBColor.init(hex:))
                 ?? RGBLighting.defaultColor,
             level: RGBLighting.levelRange.contains(level) ? level : RGBLighting.levelRange.upperBound,
             speed: RGBLighting.clampedSpeed(defaults.double(forKey: DefaultsKey.rgbLightingSpeed)),
-            isOn: defaults.bool(forKey: DefaultsKey.rgbLightingOn) && mode != .off)
+            isOn: defaults.bool(forKey: DefaultsKey.rgbLightingOn))
         customColors = RGBLighting.decodeCustomColors(defaults.string(forKey: DefaultsKey.rgbLightingCustomColors))
         RGBLightingClock.shared.setSpeed(settings.speed, at: ProcessInfo.processInfo.systemUptime)
     }
@@ -37,6 +43,7 @@ final class RGBLightingService: ObservableObject {
     func syncWithPreferences() {
         NommoService.shared.syncWithPreferences()
         MSIMonitorService.shared.syncWithPreferences()
+        syncScreen()
     }
 
     /// Off fades the lights to black, keeping the mode and the rest for when
@@ -115,7 +122,13 @@ final class RGBLightingService: ObservableObject {
     }
 
     private func lightingChanged() {
+        syncScreen()
         NommoService.shared.lightingChanged()
         MSIMonitorService.shared.lightingChanged()
+    }
+
+    /// The picture is watched only while the screen mode shows.
+    private func syncScreen() {
+        RGBScreenSampler.shared.update(wanted: isActive && settings.isOn && settings.mode == .screen)
     }
 }

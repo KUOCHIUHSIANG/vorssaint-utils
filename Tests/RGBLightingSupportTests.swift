@@ -61,7 +61,7 @@ enum RGBLightingSupportTests {
                         && dimming.frame(at: 1, lights: nommo) == (Array(repeating: .black, count: 12), false)
                         && dimming.frame(at: 0.5, lights: nommo).moving,
                      "the switch fades the lights to black and keeps the mode for later")
-        suite.expect(!RGBLightingMode.choosable.contains(.off) && RGBLightingMode.choosable.count == 7,
+        suite.expect(!RGBLightingMode.choosable.contains(.off) && RGBLightingMode.choosable.count == 8,
                      "the menu leaves off to the switch")
         suite.expect(RGBLightingMode.allCases.filter(\.usesColor) == [.solid, .breathing, .meteor, .lightning]
                         && RGBLightingMode.allCases.filter(\.usesDirection) == [.wave, .meteor]
@@ -173,6 +173,42 @@ enum RGBLightingSupportTests {
             suite.expect(storm.frame(at: strike, lights: nommo).colors[0] == RGBLighting.defaultColor,
                          "a strike flashes white")
         }
+
+        // MARK: Screen colors
+
+        // A 32×22 picture: red on the left third, blue on the right, green in between, one white band at the top.
+        let width = 32, height = 22
+        var bgra = [UInt8](repeating: 0, count: width * height * 4)
+        for y in 0..<height {
+            for x in 0..<width {
+                let (r, g, b): (UInt8, UInt8, UInt8) = y == 0 ? (255, 255, 255)
+                    : x < 12 ? (255, 0, 0) : x >= 20 ? (0, 0, 255) : (0, 255, 0)
+                bgra.replaceSubrange((y * width + x) * 4..<(y * width + x) * 4 + 4, with: [b, g, r, 255])
+            }
+        }
+        let picture = bgra.withUnsafeBytes {
+            RGBScreenSample.averaging(bgra: $0, width: width, height: height, bytesPerRow: width * 4)
+        }
+        let rowColors = monitor.map(picture.color(for:))
+        suite.expect(rowColors[0] == RGBColor(red: 255, green: 255, blue: 255),
+                     "the top monitor row takes the top band of the picture")
+        suite.expect(rowColors[10].red > 100 && rowColors[10].blue > 100 && rowColors[10].green < 30,
+                     "a monitor row mixes its band's left and right edges, both sides lit alike")
+        suite.expect(picture.color(for: nommo[6]).red == 255 && picture.color(for: nommo[6]).blue < 30
+                        && picture.color(for: nommo[0]).blue == 255 && picture.color(for: nommo[0]).red < 30,
+                     "the left speaker takes the left of the picture, the right speaker the right")
+        suite.expect(RGBColor(red: 200, green: 100, blue: 100).saturated(by: 1.3) == RGBColor(red: 200, green: 70, blue: 70)
+                        && RGBColor(red: 90, green: 90, blue: 90).saturated(by: 2) == RGBColor(red: 90, green: 90, blue: 90),
+                     "saturation deepens a color at the same brightness and leaves greys alone")
+        let dark = RGBScreenSample(channels: [])
+        let halfway = dark.blended(toward: picture, share: 0.5)
+        suite.expect(halfway.color(for: monitor[0]).red == 128 && dark.blended(toward: picture, share: 1) == picture,
+                     "smoothing moves part of the way to the newest picture")
+        let watching = RGBLightingProgram(settings(.screen), start: nil, began: 0)
+        suite.expect(watching.frame(at: 5, lights: nommo, screen: picture).colors[6] == picture.color(for: nommo[6])
+                        && watching.frame(at: 5, lights: nommo).colors.allSatisfy { $0 == .black }
+                        && watching.frame(at: 5, lights: nommo).moving,
+                     "the screen mode shows the picture, dark until the first one arrives, and keeps drawing")
 
         // MARK: MSI monitor
 

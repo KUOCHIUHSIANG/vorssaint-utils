@@ -195,6 +195,40 @@ struct RGBLightingLevelSlider: View {
     }
 }
 
+/// What the screen mode reads, and what it needs to.
+struct RGBScreenModeNote: View {
+    @ObservedObject private var l10n = L10n.shared
+    @ObservedObject private var sampler = RGBScreenSampler.shared
+    var font: Font = .system(size: 9.5)
+
+    private var strings: RGBLightingFeatureStrings { FeatureStrings.rgbLighting(l10n.language) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(strings.screenHint)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            switch sampler.status {
+            case .needsPermission:
+                HStack(alignment: .firstTextBaseline) {
+                    Text(strings.screenPermission)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 6)
+                    Button(strings.allowPermission) { sampler.requestPermission() }
+                        .controlSize(.small)
+                }
+            case .failed:
+                Text(strings.screenFailed)
+                    .foregroundStyle(.orange)
+            case .idle, .running:
+                EmptyView()
+            }
+        }
+        .font(font)
+    }
+}
+
 /// How fast the moving modes go, from a quarter of their pace to three times
 /// it, on a scale where each step multiplies the speed alike.
 struct RGBLightingSpeedSlider: View {

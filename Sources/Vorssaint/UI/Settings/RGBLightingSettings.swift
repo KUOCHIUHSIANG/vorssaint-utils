@@ -25,6 +25,10 @@ struct RGBLightingSettings: View {
                 }
             }
             Group {
+                if service.settings.mode == .screen {
+                    RGBScreenModeNote(font: .caption)
+                        .padding(.leading, settingsRowTextInset)
+                }
                 if service.settings.mode.usesDirection {
                     SettingsRow(symbol: nil, title: strings.direction) {
                         RGBLightingDirectionPicker()

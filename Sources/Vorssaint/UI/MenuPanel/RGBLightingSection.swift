@@ -38,6 +38,9 @@ struct RGBLightingSection: View {
                                 .frame(width: 150)
                         }
                     }
+                    if service.settings.mode == .screen {
+                        RGBScreenModeNote()
+                    }
                     if service.settings.mode.usesColor {
                         RGBLightingColorRow()
                         if service.settings.mode == .lightning {
