@@ -17,14 +17,16 @@ final class RGBLightingService: ObservableObject {
     private init() {
         let defaults = UserDefaults.standard
         let level = defaults.integer(forKey: DefaultsKey.rgbLightingLevel)
+        let mode = defaults.string(forKey: DefaultsKey.rgbLightingMode).flatMap(RGBLightingMode.init(rawValue:))
         settings = RGBLightingChoice(
-            mode: defaults.string(forKey: DefaultsKey.rgbLightingMode).flatMap(RGBLightingMode.init(rawValue:)) ?? .off,
+            mode: mode.flatMap { $0 == .off ? nil : $0 } ?? .cycle,
             direction: defaults.string(forKey: DefaultsKey.rgbLightingDirection)
                 .flatMap(RGBWaveDirection.init(rawValue:)) ?? .down,
             color: defaults.string(forKey: DefaultsKey.rgbLightingColor).flatMap(RGBColor.init(hex:))
                 ?? RGBLighting.defaultColor,
             level: RGBLighting.levelRange.contains(level) ? level : RGBLighting.levelRange.upperBound,
-            speed: RGBLighting.clampedSpeed(defaults.double(forKey: DefaultsKey.rgbLightingSpeed)))
+            speed: RGBLighting.clampedSpeed(defaults.double(forKey: DefaultsKey.rgbLightingSpeed)),
+            isOn: defaults.bool(forKey: DefaultsKey.rgbLightingOn) && mode != .off)
         customColors = RGBLighting.decodeCustomColors(defaults.string(forKey: DefaultsKey.rgbLightingCustomColors))
         RGBLightingClock.shared.setSpeed(settings.speed, at: ProcessInfo.processInfo.systemUptime)
     }
@@ -35,6 +37,14 @@ final class RGBLightingService: ObservableObject {
     func syncWithPreferences() {
         NommoService.shared.syncWithPreferences()
         MSIMonitorService.shared.syncWithPreferences()
+    }
+
+    /// Off fades the lights to black, keeping the mode and the rest for when
+    /// they come back on.
+    func setOn(_ isOn: Bool) {
+        settings.isOn = isOn
+        UserDefaults.standard.set(isOn, forKey: DefaultsKey.rgbLightingOn)
+        lightingChanged()
     }
 
     func setMode(_ mode: RGBLightingMode) {

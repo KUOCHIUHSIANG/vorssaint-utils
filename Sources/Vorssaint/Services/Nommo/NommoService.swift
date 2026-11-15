@@ -441,7 +441,7 @@ final class NommoService: ObservableObject {
     /// animation back whatever was drawn.
     private func handBackLighting(always: Bool) {
         let settings = RGBLightingService.shared.settings
-        guard always || settings.mode.moves else { return }
+        guard always || settings.shownMode.moves else { return }
         let level = always ? 1 : RGBLighting.levelFactor(percent: settings.level)
         pendingLighting?.cancel()
         queue.sync {

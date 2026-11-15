@@ -472,9 +472,10 @@ enum DefaultsKey {
     // The speakers' brightness, where fades return to; adopted from them the first time.
     static let nommoLightingBrightness = "nommoLightingBrightness"
     // RGB lighting for the speakers and the MSI monitor, put back after a power-up
-    // or a built-in EQ mode's color: the mode, the wave's direction, the solid
-    // color (#RRGGBB), the brightness slider in percent, and colors added with "+".
+    // or a built-in EQ mode's color: the switch, the mode, the wave's direction,
+    // the color (#RRGGBB), the brightness slider in percent, and colors added with "+".
     static let panelShowRGBLighting = "panelShowRGBLighting"
+    static let rgbLightingOn = "rgbLightingOn"
     static let rgbLightingMode = "rgbLightingMode"
     static let rgbLightingDirection = "rgbLightingDirection"
     static let rgbLightingColor = "rgbLightingColor"
@@ -482,9 +483,6 @@ enum DefaultsKey {
     // How fast the moving modes go, as a multiple of their usual pace.
     static let rgbLightingSpeed = "rgbLightingSpeed"
     static let rgbLightingCustomColors = "rgbLightingCustomColors"
-    // The MSI monitor's own lighting report, read before Neptater drew over it,
-    // to hand back on quit. One monitor's state, so not registered or backed up.
-    static let msiMonitorOwnLighting = "msiMonitorOwnLighting"
     // System monitor — per-metric history graphs (each independently toggleable).
     static let monitorGraphCPU = "monitorGraphCPU"
     static let monitorGraphGPU = "monitorGraphGPU"
@@ -1764,7 +1762,8 @@ enum Defaults {
         DefaultsKey.nommoEQPresets: NommoEQPresetStore.defaultStorage,
         DefaultsKey.nommoLightingBrightness: NommoLighting.fullBrightness,
         DefaultsKey.panelShowRGBLighting: true,
-        DefaultsKey.rgbLightingMode: RGBLightingMode.off.rawValue,
+        DefaultsKey.rgbLightingOn: true,
+        DefaultsKey.rgbLightingMode: RGBLightingMode.cycle.rawValue,
         DefaultsKey.rgbLightingDirection: RGBWaveDirection.down.rawValue,
         DefaultsKey.rgbLightingColor: RGBLighting.defaultColor.hex,
         DefaultsKey.rgbLightingLevel: RGBLighting.levelRange.upperBound,

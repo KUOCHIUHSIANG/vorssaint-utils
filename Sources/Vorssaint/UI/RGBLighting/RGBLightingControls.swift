@@ -4,6 +4,19 @@
 import AppKit
 import SwiftUI
 
+/// The switch: off dims the lights to black and keeps the rest as it is.
+struct RGBLightingSwitch: View {
+    @ObservedObject private var l10n = L10n.shared
+    @ObservedObject private var service = RGBLightingService.shared
+
+    var body: some View {
+        Toggle(FeatureStrings.rgbLighting(l10n.language).lighting,
+               isOn: Binding(get: { service.settings.isOn }, set: { service.setOn($0) }))
+            .toggleStyle(.switch)
+            .labelsHidden()
+    }
+}
+
 /// The modes, in a menu: there are too many for a segmented control.
 struct RGBLightingModePicker: View {
     @ObservedObject private var l10n = L10n.shared
@@ -13,7 +26,7 @@ struct RGBLightingModePicker: View {
 
     var body: some View {
         Picker(strings.lighting, selection: Binding(get: { service.settings.mode }, set: { service.setMode($0) })) {
-            ForEach(RGBLightingMode.allCases, id: \.self) { mode in
+            ForEach(RGBLightingMode.choosable, id: \.self) { mode in
                 Text(strings.modeName(mode)).tag(mode)
             }
         }
@@ -189,6 +202,7 @@ struct RGBLightingSpeedSlider: View {
     @ObservedObject private var service = RGBLightingService.shared
 
     private var strings: RGBLightingFeatureStrings { FeatureStrings.rgbLighting(l10n.language) }
+    private var multiple: String { String(format: "%.1f×", locale: MetricFormat.locale, service.settings.speed) }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -197,10 +211,10 @@ struct RGBLightingSpeedSlider: View {
             Slider(value: Binding(get: { log2(service.settings.speed) }, set: { service.setSpeed(pow(2, $0)) }),
                    in: log2(RGBLighting.speedRange.lowerBound)...log2(RGBLighting.speedRange.upperBound))
                 .accessibilityLabel(strings.speed)
-                .accessibilityValue(String(format: "%.1f×", service.settings.speed))
+                .accessibilityValue(multiple)
             Image(systemName: "hare.fill")
                 .foregroundStyle(.secondary)
-            Text(String(format: "%.1f×", service.settings.speed))
+            Text(multiple)
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
                 .frame(minWidth: 34, alignment: .trailing)

@@ -18,32 +18,37 @@ struct RGBLightingSettings: View {
             }
             Divider()
             SettingsRow(symbol: nil, title: strings.lighting, caption: strings.caption) {
-                RGBLightingModePicker()
-            }
-            if service.settings.mode.usesDirection {
-                SettingsRow(symbol: nil, title: strings.direction) {
-                    RGBLightingDirectionPicker()
-                        .frame(width: 200)
+                HStack(spacing: 10) {
+                    RGBLightingModePicker()
+                        .disabled(!service.settings.isOn)
+                    RGBLightingSwitch()
                 }
             }
-            if service.settings.mode.usesColor {
-                SettingsRow(symbol: nil, title: strings.color,
-                            caption: service.settings.mode == .lightning ? strings.lightningHint : nil) {
-                    RGBLightingColorRow(size: 20)
+            Group {
+                if service.settings.mode.usesDirection {
+                    SettingsRow(symbol: nil, title: strings.direction) {
+                        RGBLightingDirectionPicker()
+                            .frame(width: 200)
+                    }
                 }
-            }
-            if service.settings.mode != .off {
+                if service.settings.mode.usesColor {
+                    SettingsRow(symbol: nil, title: strings.color,
+                                caption: service.settings.mode == .lightning ? strings.lightningHint : nil) {
+                        RGBLightingColorRow(size: 20)
+                    }
+                }
                 SettingsRow(symbol: nil, title: strings.brightness) {
                     RGBLightingLevelSlider()
                         .frame(width: 240)
                 }
-            }
-            if service.settings.mode.moves {
-                SettingsRow(symbol: nil, title: strings.speed) {
-                    RGBLightingSpeedSlider()
-                        .frame(width: 280)
+                if service.settings.mode.moves {
+                    SettingsRow(symbol: nil, title: strings.speed) {
+                        RGBLightingSpeedSlider()
+                            .frame(width: 280)
+                    }
                 }
             }
+            .disabled(!service.settings.isOn)
             Divider()
             SettingsRow(symbol: nil, title: strings.devices) {
                 RGBLightingDeviceList()

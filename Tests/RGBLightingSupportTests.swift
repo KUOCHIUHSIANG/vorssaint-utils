@@ -42,6 +42,7 @@ enum RGBLightingSupportTests {
         // MARK: The desk
 
         let nommo = RGBDesk.nommo, monitor = RGBDesk.msiMonitor
+        let blueStart = Array(repeating: RGBColor(red: 0, green: 0, blue: 200), count: 12)
         suite.expect(nommo.count == 12 && nommo[0..<6].allSatisfy { $0.x == 1 } && nommo[6...].allSatisfy { $0.x == 0 }
                         && nommo.allSatisfy { $0.y == 1 },
                      "speaker LEDs 0-5 light the right wall, 6-11 the left, both down on the desk")
@@ -53,6 +54,15 @@ enum RGBLightingSupportTests {
                         && RGBLightPosition(x: 0.2, y: 0.3).progress(along: .right) == 0.2
                         && RGBLightPosition(x: 0.2, y: 0.3).progress(along: .left) == 0.8,
                      "each direction measures from where the wave starts")
+        var switchedOff = settings(.cycle)
+        switchedOff.isOn = false
+        let dimming = RGBLightingProgram(switchedOff, start: blueStart, began: 0)
+        suite.expect(switchedOff.mode == .cycle && switchedOff.shownMode == .off
+                        && dimming.frame(at: 1, lights: nommo) == (Array(repeating: .black, count: 12), false)
+                        && dimming.frame(at: 0.5, lights: nommo).moving,
+                     "the switch fades the lights to black and keeps the mode for later")
+        suite.expect(!RGBLightingMode.choosable.contains(.off) && RGBLightingMode.choosable.count == 7,
+                     "the menu leaves off to the switch")
         suite.expect(RGBLightingMode.allCases.filter(\.usesColor) == [.solid, .breathing, .meteor, .lightning]
                         && RGBLightingMode.allCases.filter(\.usesDirection) == [.wave, .meteor]
                         && RGBLightingMode.allCases.filter { !$0.moves } == [.off, .solid],
@@ -187,14 +197,15 @@ enum RGBLightingSupportTests {
         suite.expect(MSIMonitorProtocol.isDrawnFrame(frame) && readBack.count == 22 && readBack[0] == rainbow[0]
                         && zip(readBack, rainbow).allSatisfy { abs(Int($0.green) - Int($1.green)) <= 24 },
                      "a drawn frame read back gives its colors, close enough to fade on from")
-        var own = [UInt8](repeating: 0, count: 168)
-        own.replaceSubrange(0..<23, with: [0x72, 0x1A, 0xFF, 0xFF, 0xFF, 0x01, 0x64, 0x00, 0xFF, 0x00, 0x00, 0x00,
-                                           0x1A, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00])
-        own[167] = 0x82
-        let back = MSIMonitorProtocol.handBack(own)
-        suite.expect(!MSIMonitorProtocol.isDrawnFrame(own) && back?[167] == 0 && back.map { Array($0[..<167]) } == Array(own[..<167]),
-                     "the monitor's own Rainbow Wave, as read, goes back unchanged and without a flash write")
-        suite.expect(MSIMonitorProtocol.handBack(frame) == nil && MSIMonitorProtocol.colors(in: own) == nil,
-                     "a drawn frame is never kept as the monitor's own effect")
+        var original = [UInt8](repeating: 0, count: 168)
+        original.replaceSubrange(0..<23, with: [0x72, 0x1A, 0xFF, 0xFF, 0xFF, 0x01, 0x64, 0x00, 0xFF, 0x00, 0x00, 0x00,
+                                                0x1A, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00])
+        suite.expect(MSIMonitorProtocol.rainbowWave(brightness: 100) == original,
+                     "the handed back Rainbow Wave is the monitor's own, as first read, without a flash write")
+        let dim = MSIMonitorProtocol.rainbowWave(brightness: MSIMonitorProtocol.brightness(forLevel: 0.5))
+        suite.expect(dim[6] == dim[17] && dim[6] < 50 && dim[6] >= 1 && MSIMonitorProtocol.brightness(forLevel: 1) == 100,
+                     "the Rainbow Wave comes back as bright as the slider, never fully dark")
+        suite.expect(!MSIMonitorProtocol.isDrawnFrame(original) && MSIMonitorProtocol.colors(in: original) == nil,
+                     "the monitor's own effect has no colors to fade on from")
     }
 }

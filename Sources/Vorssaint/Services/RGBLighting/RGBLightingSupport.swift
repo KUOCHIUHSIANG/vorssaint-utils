@@ -82,6 +82,9 @@ struct RGBColor: Equatable {
 enum RGBLightingMode: String, CaseIterable {
     case off, solid, breathing, cycle, rainbowBreathing, wave, meteor, lightning
 
+    /// The modes the menu offers; off is the switch's job.
+    static let choosable = allCases.filter { $0 != .off }
+
     /// Whether the lights keep changing once a fade is over.
     var moves: Bool { self != .off && self != .solid }
     /// Whether the chosen color shows: as is, breathing, as the meteor, or
@@ -141,6 +144,11 @@ struct RGBLightingChoice: Equatable {
     var level: Int
     /// How fast the moving modes move, 1 being the periods below.
     var speed: Double = RGBLighting.defaultSpeed
+    /// The switch: off fades the lights to black and keeps everything else.
+    var isOn = true
+
+    /// What the lights show: the mode, or off while switched off.
+    var shownMode: RGBLightingMode { isOn ? mode : .off }
 }
 
 enum RGBLighting {
@@ -321,7 +329,7 @@ struct RGBLightingProgram: Equatable {
     let began: TimeInterval
 
     init(_ settings: RGBLightingChoice, start: [RGBColor]?, began: TimeInterval) {
-        mode = settings.mode
+        mode = settings.shownMode
         direction = settings.direction
         color = settings.color
         self.start = start

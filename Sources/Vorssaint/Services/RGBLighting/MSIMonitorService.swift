@@ -12,9 +12,8 @@ import os
 /// Frames need no reply and take about a millisecond, but go out at the same
 /// pace as the speakers': OpenRGB found that back-to-back writes tie up the
 /// monitor's control pipe until it stops answering. Neptater never writes
-/// flash, so the monitor's own effect returns when it powers off; on quit, or
-/// when RGB lighting is switched off, Neptater writes that effect back, as it
-/// read it on connecting.
+/// flash; on quit, or when RGB lighting is switched off, it hands the monitor
+/// its own Rainbow Wave, the way the speakers get their spectrum back.
 final class MSIMonitorService: ObservableObject {
     static let shared = MSIMonitorService()
 
@@ -208,9 +207,9 @@ final class MSIMonitorService: ObservableObject {
 
     // MARK: - Drawing (on `queue` only)
 
-    /// Remembers the monitor's own effect, to hand back later, then draws.
-    /// Its colors can't be known, so the lighting fades in from black, unless
-    /// the monitor still shows an earlier Neptater frame to fade on from.
+    /// The monitor's own effect's colors can't be known, so the lighting fades
+    /// in from black, unless the monitor still shows an earlier Neptater frame
+    /// to fade on from.
     private func takeOver(_ settings: RGBLightingChoice, on device: IOHIDDevice) {
         var report = [UInt8](repeating: 0, count: MSIMonitorProtocol.frameLength)
         var length = report.count
@@ -218,12 +217,7 @@ final class MSIMonitorService: ObservableObject {
                                         &report, &length)
         var start: [RGBColor]?
         if read == kIOReturnSuccess {
-            let current = Array(report.prefix(length))
-            if MSIMonitorProtocol.handBack(current) != nil {
-                UserDefaults.standard.set(Data(current), forKey: DefaultsKey.msiMonitorOwnLighting)
-            } else {
-                start = MSIMonitorProtocol.colors(in: current)
-            }
+            start = MSIMonitorProtocol.colors(in: Array(report.prefix(length)))
         } else {
             Self.log.error("reading the lighting failed: \(read, privacy: .public)")
         }
@@ -289,22 +283,22 @@ final class MSIMonitorService: ObservableObject {
         if program != nil { startFrameTimer() }
     }
 
-    /// On quit a moving effect would freeze, so the monitor's own comes back;
-    /// a still one stays until the monitor powers off. When RGB lighting is
-    /// switched off (`always`), the monitor's own comes back either way.
+    /// On quit a moving effect would freeze, so the monitor's Rainbow Wave
+    /// takes over, at the brightness the slider set; a still one stays until
+    /// the monitor powers off. When RGB lighting is switched off (`always`),
+    /// the Rainbow Wave comes back at full brightness either way.
     private func handBackLighting(always: Bool) {
-        guard always || RGBLightingService.shared.settings.mode.moves else { return }
-        let own = UserDefaults.standard.data(forKey: DefaultsKey.msiMonitorOwnLighting)
-            .flatMap { MSIMonitorProtocol.handBack([UInt8]($0)) }
+        let settings = RGBLightingService.shared.settings
+        guard always || settings.shownMode.moves else { return }
+        let level = always ? 1 : RGBLighting.levelFactor(percent: settings.level)
+        let own = MSIMonitorProtocol.rainbowWave(brightness: MSIMonitorProtocol.brightness(forLevel: level))
         pending?.cancel()
         queue.sync {
             guard let device = drawingDevice else { return }
             stopFrameTimer()
             program = nil
-            if let own {
-                _ = IOHIDDeviceSetReport(device, kIOHIDReportTypeFeature, CFIndex(MSIMonitorProtocol.frameReportID),
-                                         own, own.count)
-            }
+            _ = IOHIDDeviceSetReport(device, kIOHIDReportTypeFeature, CFIndex(MSIMonitorProtocol.frameReportID),
+                                     own, own.count)
             drawnColors = nil
         }
     }

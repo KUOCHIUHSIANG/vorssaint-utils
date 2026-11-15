@@ -11,8 +11,8 @@ import Foundation
 /// control blocks (mode, color, speed, brightness 0–100, a second color, and
 /// 0x80 to paint from the per-LED colors), two arrays of 24 colors, and a
 /// last byte that also writes it all to flash. Neptater never sets that byte:
-/// what it draws lasts until the monitor powers off, and the monitor's own
-/// effect comes back after.
+/// what it draws lasts until the monitor powers off, and whatever the monitor
+/// keeps in flash comes back after.
 ///
 /// Many models share the USB ID; they tell their layout by answering 0xB0 on
 /// report 0x01. Only layout 42 is known here: 22 rows down the back, top
@@ -78,6 +78,24 @@ enum MSIMonitorProtocol {
         return bytes
     }
 
+    /// The monitor's own Rainbow Wave, as Jater's came set (mode 0x1A at speed
+    /// 1, read from it on 2026-11-15), at `percent` brightness: what Neptater
+    /// hands back, the way the speakers get their own spectrum back.
+    static func rainbowWave(brightness percent: Int) -> [UInt8] {
+        var bytes = [UInt8](repeating: 0, count: frameLength)
+        bytes[0] = frameReportID
+        let brightness = UInt8(min(max(percent, 1), 100))
+        bytes.replaceSubrange(1...11, with: [0x1A, 0xFF, 0xFF, 0xFF, 0x01, brightness, 0x00, 0xFF, 0x00, 0x00, 0x00])
+        bytes.replaceSubrange(12...22, with: [0x1A, 0x00, 0x00, 0x00, 0x01, brightness, 0x00, 0x00, 0x00, 0x00, 0x00])
+        return bytes
+    }
+
+    /// The brightness field for a level factor on the colors, so the handed
+    /// back effect looks as bright as the drawn lighting through the gamma.
+    static func brightness(forLevel level: Double) -> Int {
+        Int((pow(min(max(level, 0), 1), gamma) * 100).rounded())
+    }
+
     /// Whether `report`, read back from the monitor, is a frame Neptater drew,
     /// rather than the monitor's own effect.
     static func isDrawnFrame(_ report: [UInt8]) -> Bool {
@@ -93,15 +111,5 @@ enum MSIMonitorProtocol {
             RGBColor(red: plain(report[colorsStart + $0 * 3]), green: plain(report[colorsStart + $0 * 3 + 1]),
                      blue: plain(report[colorsStart + $0 * 3 + 2]))
         }
-    }
-
-    /// The monitor's own effect, read before Neptater drew over it, ready to
-    /// write back: reads end in a status byte where writes keep the flash flag,
-    /// which stays clear.
-    static func handBack(_ report: [UInt8]) -> [UInt8]? {
-        guard report.count == frameLength, report[0] == frameReportID, !isDrawnFrame(report) else { return nil }
-        var bytes = report
-        bytes[storeIndex] = 0
-        return bytes
     }
 }
