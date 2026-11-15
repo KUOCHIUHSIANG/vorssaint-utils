@@ -6,6 +6,15 @@ import Foundation
 /// The Nommo V2 report format, the commands Neptater may send, and the EQ
 /// presets kept on this Mac.
 enum NommoSupportTests {
+    private static let editedGame = NommoEQCurve([4, 3, 0, -2, 0, 0, 0, 1, 2, 3])
+
+    /// The Razer curves with Game edited, as after dragging it.
+    private static func withEditedGame(_ presets: [NommoEQPreset: NommoEQCurve]) -> [NommoEQPreset: NommoEQCurve] {
+        var presets = presets
+        presets[.game] = editedGame
+        return presets
+    }
+
     static func run(_ suite: TestSuite) {
         // MARK: Reports
 
@@ -60,9 +69,12 @@ enum NommoSupportTests {
         suite.expect(NommoCommand.writeEQCurve(curve).arguments == [0x00] + curve.bytes,
                      "a curve write leads with a zero byte")
         for preset in NommoEQPreset.allCases {
-            suite.expect(preset.suggestedCurve == NommoEQCurve(preset.suggestedCurve.bands),
-                         "the \(preset.rawValue) suggestion is a valid curve")
+            suite.expect(preset.razerCurve == NommoEQCurve(preset.razerCurve.bands),
+                         "the \(preset.rawValue) Razer curve is a valid curve")
         }
+        suite.expect(NommoEQPreset.music.razerCurve.bands == [3, 3, 2, -3, 0, 3, 2, 0, 2, 0]
+                        && NommoBuiltInMode.allCases.map(\.preset) == [.game, .music, .movie],
+                     "each built-in mode has the preset of the same name, holding the curve Synapse shows")
 
         // MARK: What the speaker reports
 
@@ -70,8 +82,8 @@ enum NommoSupportTests {
         suite.expect(NommoEQState(modeByte: 0x10, curve: curve) == .custom(curve), "mode 10 is the custom curve")
         suite.expect(NommoEQState(modeByte: 0x00, curve: nil) == .other(0x00), "an unknown mode stays unknown")
 
-        let presets = NommoEQPresetStore.suggestedCurves
-        suite.expect(NommoEQSelection(state: .custom(NommoEQPreset.game.suggestedCurve), presets: presets)
+        let presets = NommoEQPresetStore.razerCurves
+        suite.expect(NommoEQSelection(state: .custom(NommoEQPreset.game.razerCurve), presets: presets)
                         == .preset(.game), "a curve matching a preset shows as that preset")
         suite.expect(NommoEQSelection(state: .custom(.flat), presets: presets) == .preset(.flat),
                      "a flat curve shows as Flat")
@@ -80,6 +92,30 @@ enum NommoSupportTests {
         suite.expect(NommoEQSelection(state: .builtIn(.movie), presets: presets) == .builtIn(.movie),
                      "a built-in mode shows as itself")
         suite.expect(NommoEQSelection(state: nil, presets: presets) == .unknown, "no reading is unknown")
+        var twins = presets
+        twins[.movie] = twins[.game]
+        suite.expect(NommoEQSelection(state: .custom(presets[.game]!), presets: twins, preferring: .movie)
+                        == .preset(.movie)
+                        && NommoEQSelection(state: .custom(presets[.game]!), presets: twins) == .preset(.game)
+                        && NommoEQSelection(state: .custom(curve), presets: twins, preferring: .movie) == .otherCustom,
+                     "when two presets share a curve, the one in use stays selected")
+
+        // MARK: The chart
+
+        suite.expect(NommoEQSelection.builtIn(.movie).curve(presets: withEditedGame(presets), state: .builtIn(.movie))
+                        == NommoEQPreset.movie.razerCurve,
+                     "a built-in mode shows Razer's curve, not the edited copy")
+        suite.expect(NommoEQSelection.preset(.game).curve(presets: withEditedGame(presets), state: nil) == editedGame
+                        && NommoEQSelection.otherCustom.curve(presets: presets, state: .custom(curve)) == curve
+                        && NommoEQSelection.unknown.curve(presets: presets, state: nil) == nil,
+                     "a preset shows its saved curve, another custom curve shows as read, unknown shows nothing")
+        suite.expect(NommoEQSelection.builtIn(.music).editablePreset == .music
+                        && NommoEQSelection.preset(.movie).editablePreset == .movie,
+                     "dragging a built-in mode's curve copies it into the preset of the same name")
+        suite.expect(NommoEQSelection.preset(.flat).editablePreset == nil
+                        && NommoEQSelection.otherCustom.editablePreset == nil
+                        && NommoEQSelection.unknown.editablePreset == nil,
+                     "flat and curves set elsewhere can't be dragged")
 
         // MARK: Presets on this Mac
 

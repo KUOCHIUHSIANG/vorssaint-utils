@@ -180,6 +180,15 @@ enum NommoSubwoofer {
 /// selecting one resets the custom bands to flat.
 enum NommoBuiltInMode: UInt8, CaseIterable {
     case game = 0x01, music = 0x02, movie = 0x03
+
+    /// The preset of the same name, which holds a copy of this mode's curve.
+    var preset: NommoEQPreset {
+        switch self {
+        case .game: return .game
+        case .music: return .music
+        case .movie: return .movie
+        }
+    }
 }
 
 struct NommoEQCurve: Equatable, Codable {
@@ -246,39 +255,37 @@ enum NommoEQState: Equatable {
     }
 }
 
-/// Neptater's own curves. Game, music and movie start from suggestions drawn
-/// from common EQ guides and can be edited (for example to match what Synapse
-/// shows); flat is fixed. They live on this Mac because switching to a
-/// built-in mode resets the speaker's custom bands.
+/// Neptater's own curves. Game, music and movie start as copies of Razer's
+/// built-in curves and can be edited; flat is fixed. They live on this Mac
+/// because switching to a built-in mode resets the speaker's custom bands.
 enum NommoEQPreset: String, CaseIterable, Codable {
     case game, music, movie, flat
 
     var isEditable: Bool { self != .flat }
 
-    var suggestedCurve: NommoEQCurve {
+    var razerCurve: NommoEQCurve {
         switch self {
-        // Less rumble, more of the 1–4 kHz range where footsteps and cues sit.
-        case .game: return NommoEQCurve([-5, -4, -3, -1, -1, 1, 3, 4, 2, 0])
-        // A gentle lift at both ends; the subwoofer already carries the lows.
-        case .music: return NommoEQCurve([0, 1, 1, 0, -1, 0, 1, 2, 2, 1])
-        // Less boxiness at 250 Hz, more of the 1–4 kHz range where dialogue sits.
-        case .movie: return NommoEQCurve([-1, 0, -1, -2, 0, 2, 3, 2, -1, 1])
+        // Razer's own Game, Music and Movie curves, read off Synapse
+        // (2026-11-15), so a preset here sounds like the built-in one.
+        case .game: return NommoEQCurve([-4, -4, -3, -2, 0, 1, 1, 0, 1, -3])
+        case .music: return NommoEQCurve([3, 3, 2, -3, 0, 3, 2, 0, 2, 0])
+        case .movie: return NommoEQCurve([3, 4, 3, -2, -3, -2, -3, 2, 3, 1])
         case .flat: return .flat
         }
     }
 }
 
 enum NommoEQPresetStore {
-    static let defaultStorage = encode(suggestedCurves)
+    static let defaultStorage = encode(razerCurves)
 
-    static var suggestedCurves: [NommoEQPreset: NommoEQCurve] {
-        Dictionary(uniqueKeysWithValues: NommoEQPreset.allCases.map { ($0, $0.suggestedCurve) })
+    static var razerCurves: [NommoEQPreset: NommoEQCurve] {
+        Dictionary(uniqueKeysWithValues: NommoEQPreset.allCases.map { ($0, $0.razerCurve) })
     }
 
     /// Saved curves, with every preset present: a missing or damaged entry
     /// falls back to its suggestion, and flat is always flat.
     static func decode(_ storage: String?) -> [NommoEQPreset: NommoEQCurve] {
-        var curves = suggestedCurves
+        var curves = razerCurves
         guard let data = storage?.data(using: .utf8),
               let saved = try? JSONDecoder().decode([String: NommoEQCurve].self, from: data) else {
             return curves
@@ -312,18 +319,49 @@ enum NommoEQSelection: Hashable {
     case otherCustom
     case unknown
 
-    init(state: NommoEQState?, presets: [NommoEQPreset: NommoEQCurve]) {
+    /// `preferring` is the preset last chosen or edited: when another preset
+    /// has the same curve, the selection stays on the one in use.
+    init(state: NommoEQState?, presets: [NommoEQPreset: NommoEQCurve], preferring preferred: NommoEQPreset? = nil) {
         switch state {
         case let .builtIn(mode):
             self = .builtIn(mode)
         case let .custom(curve):
-            if let preset = NommoEQPreset.allCases.first(where: { presets[$0] == curve }) {
+            if let preferred, presets[preferred] == curve {
+                self = .preset(preferred)
+            } else if let preset = NommoEQPreset.allCases.first(where: { presets[$0] == curve }) {
                 self = .preset(preset)
             } else {
                 self = .otherCustom
             }
         case .other, .none:
             self = .unknown
+        }
+    }
+}
+
+extension NommoEQSelection {
+    /// What the EQ chart shows: a preset's saved curve, a built-in mode's
+    /// Razer curve, or the custom curve the speaker has. Nothing when the
+    /// speaker's mode is unknown.
+    func curve(presets: [NommoEQPreset: NommoEQCurve], state: NommoEQState?) -> NommoEQCurve? {
+        switch self {
+        case let .preset(preset): return presets[preset]
+        case let .builtIn(mode): return mode.preset.razerCurve
+        case .otherCustom:
+            if case let .custom(curve) = state { return curve }
+            return nil
+        case .unknown: return nil
+        }
+    }
+
+    /// Where a drag on the chart is saved: the preset itself, or for a
+    /// built-in mode, whose curve the firmware keeps, the preset of the same
+    /// name, which takes a copy. Flat and curves set elsewhere stay as they are.
+    var editablePreset: NommoEQPreset? {
+        switch self {
+        case let .preset(preset): return preset.isEditable ? preset : nil
+        case let .builtIn(mode): return mode.preset
+        case .otherCustom, .unknown: return nil
         }
     }
 }

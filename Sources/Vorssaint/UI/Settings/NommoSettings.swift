@@ -3,8 +3,8 @@
 
 import SwiftUI
 
-/// Settings card for the Nommo V2: the panel controls, plus the editor for the
-/// presets kept on this Mac and the speaker's standby.
+/// Settings card for the Nommo V2: the same controls as the panel, with a
+/// larger EQ chart.
 struct NommoSettings: View {
     @ObservedObject private var l10n = L10n.shared
     @ObservedObject private var service = NommoService.shared
@@ -25,10 +25,12 @@ struct NommoSettings: View {
                 }
                 Divider()
                 SettingsRow(symbol: nil, title: strings.equalizer, caption: strings.builtInCaption) {
-                    NommoEQMenu()
+                    HStack(spacing: 6) {
+                        NommoEQMenu()
+                    }
                 }
-                Divider()
-                curveEditor
+                NommoEQEditor(plotHeight: 120, compact: false)
+                    .padding(.vertical, 4)
                 Divider()
                 SettingsRow(symbol: nil, title: strings.lighting, caption: strings.lightingCaption) {
                     NommoLightingPicker()
@@ -71,14 +73,5 @@ struct NommoSettings: View {
         guard service.isConnected else { return strings.notConnected }
         guard let firmware = service.state.firmware else { return strings.connected }
         return "\(strings.connected) · \(String(format: strings.firmwareFormat, firmware))"
-    }
-
-    private var curveEditor: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(strings.editCurve)
-                .font(.headline)
-            NommoPresetEditor()
-        }
-        .padding(.vertical, 4)
     }
 }

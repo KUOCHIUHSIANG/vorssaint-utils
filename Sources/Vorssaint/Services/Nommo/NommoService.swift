@@ -79,7 +79,8 @@ final class NommoService: ObservableObject {
             UserDefaults.standard.string(forKey: DefaultsKey.nommoLightingCustomColors))
     }
 
-    var selection: NommoEQSelection { NommoEQSelection(state: state.eq, presets: presets) }
+    var selection: NommoEQSelection { NommoEQSelection(state: state.eq, presets: presets, preferring: presetInUse) }
+    private var presetInUse: NommoEQPreset?
 
     // MARK: - Lifecycle
 
@@ -221,6 +222,7 @@ final class NommoService: ObservableObject {
         switch selection {
         case let .builtIn(mode):
             guard let device else { return }
+            presetInUse = nil
             // Stop drawing first, or the next frame would cover the mode's color.
             pendingLighting?.cancel()
             queue.async { [weak self] in self?.yield(to: mode) }
@@ -239,23 +241,32 @@ final class NommoService: ObservableObject {
             }
         case let .preset(preset):
             guard let curve = presets[preset] else { return }
+            presetInUse = preset
             writeCurve(curve, after: 0)
         case .otherCustom, .unknown:
             break
         }
     }
 
+    /// A drag on the chart: saved to the EQ in use, or for a built-in mode
+    /// copied into the preset of the same name, which then plays.
+    func editCurve(_ curve: NommoEQCurve) {
+        guard let preset = selection.editablePreset else { return }
+        update(preset, curve: curve)
+    }
+
     /// Saves an edited preset and plays it, so the change is heard while dragging.
     func update(_ preset: NommoEQPreset, curve: NommoEQCurve) {
         guard preset.isEditable else { return }
+        presetInUse = preset
         presets[preset] = curve
         UserDefaults.standard.set(NommoEQPresetStore.encode(presets), forKey: DefaultsKey.nommoEQPresets)
         state.eq = .custom(curve)
         writeCurve(curve, after: Self.curveWriteDelay)
     }
 
-    func restoreSuggestion(for preset: NommoEQPreset) {
-        update(preset, curve: preset.suggestedCurve)
+    func restoreRazerCurve(for preset: NommoEQPreset) {
+        update(preset, curve: preset.razerCurve)
     }
 
     func setAutoStandby(_ isOn: Bool) {

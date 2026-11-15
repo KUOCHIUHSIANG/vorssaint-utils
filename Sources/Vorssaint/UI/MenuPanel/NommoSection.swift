@@ -4,13 +4,12 @@
 import SwiftUI
 
 /// Panel section with every Nommo V2 control, so nothing needs Settings: the
-/// subwoofer level and EQ up front, the curve editor behind a disclosure, and
-/// standby. It reads the speaker each time it appears, so the panel shows what
-/// the speaker actually has.
+/// subwoofer level, the EQ with its curve to drag, lighting and standby. It
+/// reads the speaker each time it appears, so the panel shows what the
+/// speaker actually has.
 struct NommoSection: View {
     @ObservedObject private var l10n = L10n.shared
     @ObservedObject private var service = NommoService.shared
-    @State private var editorExpanded = false
     var collapsible = true
 
     private var strings: NommoFeatureStrings { FeatureStrings.nommo(l10n.language) }
@@ -39,11 +38,8 @@ struct NommoSection: View {
                         NommoEQMenu()
                             .controlSize(.small)
                     }
-                    if !editorExpanded, case let .preset(preset) = service.selection,
-                       let curve = service.presets[preset] {
-                        NommoCurvePreview(curve: curve)
-                    }
-                    editorDisclosure
+                    NommoEQEditor()
+                        .controlSize(.small)
                     Divider()
                     HStack {
                         Text(strings.lighting)
@@ -78,32 +74,6 @@ struct NommoSection: View {
             }
             .panelCard()
             .onAppear { service.refresh() }
-        }
-    }
-
-    private var editorDisclosure: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Button {
-                editorExpanded.toggle()
-            } label: {
-                HStack(spacing: 7) {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 12)
-                        .rotationEffect(.degrees(editorExpanded ? 90 : 0))
-                    Text(strings.editCurve)
-                        .font(.system(size: 11.5, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                    Spacer(minLength: 0)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            if editorExpanded {
-                NommoPresetEditor(compact: true)
-                    .controlSize(.small)
-            }
         }
     }
 
