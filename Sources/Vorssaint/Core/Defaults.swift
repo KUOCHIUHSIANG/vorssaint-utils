@@ -473,6 +473,9 @@ enum DefaultsKey {
     static let nommoLighting = "nommoLighting"
     // Where fades return to; adopted from the speakers the first time.
     static let nommoLightingBrightness = "nommoLightingBrightness"
+    // The solid color (#RRGGBB) and the brightness slider in percent.
+    static let nommoLightingColor = "nommoLightingColor"
+    static let nommoLightingLevel = "nommoLightingLevel"
     // System monitor — per-metric history graphs (each independently toggleable).
     static let monitorGraphCPU = "monitorGraphCPU"
     static let monitorGraphGPU = "monitorGraphGPU"
@@ -1752,6 +1755,8 @@ enum Defaults {
         DefaultsKey.nommoEQPresets: NommoEQPresetStore.defaultStorage,
         DefaultsKey.nommoLighting: NommoLighting.off.rawValue,
         DefaultsKey.nommoLightingBrightness: NommoLighting.fullBrightness,
+        DefaultsKey.nommoLightingColor: NommoLighting.defaultColor.hex,
+        DefaultsKey.nommoLightingLevel: NommoLighting.levelRange.upperBound,
         DefaultsKey.panelNavigationEnabled: true,
         DefaultsKey.monitorGraphCPU: true,
         DefaultsKey.monitorGraphGPU: true,

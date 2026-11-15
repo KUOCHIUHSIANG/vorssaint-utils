@@ -331,6 +331,8 @@ enum SettingsDirectory {
                                                   FeatureStrings.nommo(language).equalizer,
                                                   FeatureStrings.nommo(language).editCurve,
                                                   FeatureStrings.nommo(language).lighting,
+                                                  FeatureStrings.nommo(language).lightingColor,
+                                                  FeatureStrings.nommo(language).brightness,
                                                   FeatureStrings.nommo(language).autoStandby,
                                                   FeatureStrings.nommo(language).standbyDelay]),
                                         (.keepAwake, [s.globalHotkeySection, s.hotkeyToggle]),

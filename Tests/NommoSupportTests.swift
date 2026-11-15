@@ -146,6 +146,31 @@ enum NommoSupportTests {
         suite.expect(NommoLightingProgram(target: .off, start: .black, began: 0).frame(at: 0) == (.black, false),
                      "off from off draws one black frame and stops")
         suite.expect(NommoLighting.frameInterval >= 1.0 / 30, "frames are paced, never sent back to back")
+
+        // Solid color and brightness
+        let green = NommoColor(hex: "#22E05A")!
+        suite.expect(green.hex == "#22E05A" && NommoColor(hex: "22e05a") == green && NommoColor(hex: "#12345") == nil,
+                     "a color saves as #RRGGBB and reads back")
+        suite.expect(NommoLighting.swatches.count == 9 && Set(NommoLighting.swatches.map(\.hex)).count == 9,
+                     "nine distinct swatches")
+        suite.expect(NommoLighting.levelFactor(percent: 100) == 1 && NommoLighting.levelFactor(percent: 0)
+                        == NommoLighting.levelFactor(percent: 5) && NommoLighting.levelFactor(percent: 50) < 0.5,
+                     "the slider bottoms out at 5 % and its middle looks half as bright")
+        let solidIn = NommoLightingProgram(target: .solid, color: green, start: .black, began: 0)
+        suite.expect(solidIn.frame(at: 0).color == .black && solidIn.frame(at: 1).color == green
+                        && !solidIn.frame(at: 1).moving, "a solid color fades in from off, then holds")
+        let crossFade = NommoLightingProgram(target: .solid, color: green, start: .color(music), began: 0)
+        suite.expect(crossFade.frame(at: 0).color == music && crossFade.frame(at: 1).color == green,
+                     "a solid color cross-fades from the mode's color")
+        let middle = crossFade.frame(at: 0.5).color
+        suite.expect(middle != music && middle != green && crossFade.frame(at: 0.5).moving,
+                     "half way through, the cross-fade is between the two")
+        suite.expect(solidIn.frame(at: 2, level: 0.5).color == green.scaled(0.5),
+                     "the brightness scales the settled color")
+        let dimRainbow = NommoLightingProgram(target: .spectrum, start: .color(music), began: 0)
+        suite.expect(dimRainbow.frame(at: 0, level: 0.4).color == music
+                        && dimRainbow.frame(at: 2, level: 0.4).color == NommoColor(hue: 72).scaled(0.4),
+                     "a rainbow from a mode's color starts at full strength and eases to the brightness")
         suite.expect(NommoLighting.eqColorHold == 3, "the strings promise a built-in mode's color shows for 3 seconds")
         suite.expect(NommoCommand.writeBrightness(300).arguments == [0x01, 0x00, 0xFF]
                         && NommoCommand.readBrightness.arguments == [0x01, 0x00],

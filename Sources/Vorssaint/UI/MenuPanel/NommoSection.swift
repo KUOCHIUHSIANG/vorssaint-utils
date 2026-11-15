@@ -51,9 +51,17 @@ struct NommoSection: View {
                         Spacer(minLength: 8)
                         NommoLightingPicker()
                             .controlSize(.small)
-                            .frame(width: 150)
+                            .frame(width: 190)
                     }
                     .help(strings.lightingCaption)
+                    if service.lighting == .solid {
+                        NommoLightingColorRow()
+                    }
+                    if service.lighting != .off {
+                        NommoLightingLevelSlider()
+                            .controlSize(.small)
+                            .font(.system(size: 10.5))
+                    }
                     Divider()
                     standby
                     if service.failure != nil {

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Jater
 
+import AppKit
 import SwiftUI
 
 /// Subwoofer levels 1 to 7. The speaker has no 0: it reads an out-of-range
@@ -283,5 +284,101 @@ struct NommoLightingPicker: View {
         }
         .pickerStyle(.segmented)
         .labelsHidden()
+    }
+}
+
+/// Nine common colors and the system color panel, for the solid lighting.
+struct NommoLightingColorRow: View {
+    @ObservedObject private var l10n = L10n.shared
+    @ObservedObject private var service = NommoService.shared
+    var size: CGFloat = 18
+
+    private var strings: NommoFeatureStrings { FeatureStrings.nommo(l10n.language) }
+
+    var body: some View {
+        HStack(spacing: 7) {
+            ForEach(NommoLighting.swatches, id: \.hex) { color in
+                let chosen = service.lighting == .solid && service.lightingColor == color
+                Button {
+                    service.setLightingColor(color)
+                } label: {
+                    Circle()
+                        .fill(Color(nsColor: color.nsColor))
+                        .overlay(Circle().strokeBorder(Color.primary.opacity(0.18), lineWidth: 1))
+                        .padding(chosen ? 3 : 0)
+                        .overlay(Circle().strokeBorder(chosen ? Color.primary : .clear, lineWidth: 1.5))
+                        .frame(width: size, height: size)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(color.hex)
+            }
+            Button {
+                NommoColorPanel.shared.open(with: service.lightingColor)
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: size * 0.5, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: size, height: size)
+                    .overlay(Circle().strokeBorder(Color.secondary, style: StrokeStyle(lineWidth: 1, dash: [2, 2])))
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .help(strings.customColor)
+            .accessibilityLabel(strings.customColor)
+        }
+    }
+}
+
+/// The brightness of the rainbow and the solid color, 5 % to 100 %.
+struct NommoLightingLevelSlider: View {
+    @ObservedObject private var l10n = L10n.shared
+    @ObservedObject private var service = NommoService.shared
+
+    private var strings: NommoFeatureStrings { FeatureStrings.nommo(l10n.language) }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "sun.min")
+                .foregroundStyle(.secondary)
+            Slider(value: Binding(get: { Double(service.lightingLevel) },
+                                  set: { service.setLightingLevel(Int($0.rounded())) }),
+                   in: Double(NommoLighting.levelRange.lowerBound)...Double(NommoLighting.levelRange.upperBound))
+                .accessibilityLabel(strings.brightness)
+            Text("\(service.lightingLevel)%")
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+                .frame(minWidth: 34, alignment: .trailing)
+        }
+    }
+}
+
+/// The system color panel, kept apart from the views: picking in it can close
+/// the menu panel, and the speakers should still follow every change.
+final class NommoColorPanel: NSObject {
+    static let shared = NommoColorPanel()
+
+    func open(with color: NommoColor) {
+        let panel = NSColorPanel.shared
+        panel.showsAlpha = false
+        panel.isContinuous = true
+        panel.setTarget(self)
+        panel.setAction(#selector(colorChanged(_:)))
+        panel.color = color.nsColor
+        NSApp.activate(ignoringOtherApps: true)
+        panel.orderFrontRegardless()
+    }
+
+    @objc private func colorChanged(_ panel: NSColorPanel) {
+        guard let rgb = panel.color.usingColorSpace(.sRGB) else { return }
+        func byte(_ component: CGFloat) -> UInt8 { UInt8((min(max(component, 0), 1) * 255).rounded()) }
+        NommoService.shared.setLightingColor(NommoColor(red: byte(rgb.redComponent), green: byte(rgb.greenComponent),
+                                                        blue: byte(rgb.blueComponent)))
+    }
+}
+
+extension NommoColor {
+    var nsColor: NSColor {
+        NSColor(srgbRed: CGFloat(red) / 255, green: CGFloat(green) / 255, blue: CGFloat(blue) / 255, alpha: 1)
     }
 }

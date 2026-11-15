@@ -397,6 +397,24 @@ struct NommoColor: Equatable {
         func scale(_ channel: UInt8) -> UInt8 { UInt8((Double(channel) * share).rounded()) }
         return NommoColor(red: scale(red), green: scale(green), blue: scale(blue))
     }
+
+    /// `fraction` of the way from this color to `other`.
+    func mixed(with other: NommoColor, _ fraction: Double) -> NommoColor {
+        let share = min(max(fraction, 0), 1)
+        func mix(_ from: UInt8, _ to: UInt8) -> UInt8 {
+            UInt8((Double(from) + (Double(to) - Double(from)) * share).rounded())
+        }
+        return NommoColor(red: mix(red, other.red), green: mix(green, other.green), blue: mix(blue, other.blue))
+    }
+
+    /// "#RRGGBB", how the chosen color is saved.
+    var hex: String { String(format: "#%02X%02X%02X", red, green, blue) }
+
+    init?(hex: String) {
+        let digits = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
+        guard digits.count == 6, let value = UInt32(digits, radix: 16) else { return nil }
+        self.init(red: UInt8(value >> 16 & 0xFF), green: UInt8(value >> 8 & 0xFF), blue: UInt8(value & 0xFF))
+    }
 }
 
 extension NommoBuiltInMode {
@@ -420,7 +438,7 @@ extension NommoBuiltInMode {
 /// while frames sent 30 times a second never did (measured on Jater's pair).
 /// Drawing also lets a built-in mode's color flow straight into the rainbow.
 enum NommoLighting: String, CaseIterable {
-    case off, spectrum
+    case off, spectrum, solid
 
     /// How long a built-in mode's color shows before the lighting returns.
     /// The strings say 3 seconds.
@@ -438,8 +456,28 @@ enum NommoLighting: String, CaseIterable {
     /// One trip round the color wheel.
     static let rainbowPeriod: TimeInterval = 10
     static let fullBrightness = 255
+    /// The brightness slider runs from 5 % (dim but on) to 100 %.
+    static let levelRange = 5...100
+    static let defaultColor = NommoColor(red: 255, green: 255, blue: 255)
+    /// White, red, orange, yellow, green, cyan, blue, purple, pink.
+    static let swatches: [NommoColor] = [
+        defaultColor, NommoColor(hex: "#FF2A2A")!, NommoColor(hex: "#FF8A00")!, NommoColor(hex: "#FFD400")!,
+        NommoColor(hex: "#22E05A")!, NommoColor(hex: "#00D5FF")!, NommoColor(hex: "#2F6BFF")!,
+        NommoColor(hex: "#9B4DFF")!, NommoColor(hex: "#FF4FB8")!,
+    ]
 
     static func clampedBrightness(_ level: Int) -> Int { min(max(level, 0), fullBrightness) }
+
+    /// The slider's percentage as a factor on each channel, even to the eye.
+    static func levelFactor(percent: Int) -> Double {
+        pow(Double(min(max(percent, levelRange.lowerBound), levelRange.upperBound)) / 100, fadeGamma)
+    }
+
+    /// Eases a change in and out, so a cross-fade has no visible start or stop.
+    static func eased(_ progress: Double) -> Double {
+        let share = min(max(progress, 0), 1)
+        return share * share * (3 - 2 * share)
+    }
 
     /// How lit a fade is `progress` (0 to 1) of the way out (or in), as a
     /// factor on each channel, even to the eye.
@@ -460,7 +498,9 @@ enum NommoLighting: String, CaseIterable {
 }
 
 /// What the LEDs show over time on the way to a lighting choice: from black
-/// or from a known color (a built-in mode's), then holding the target.
+/// or from a known color (a built-in mode's, or whatever was drawn), then
+/// holding the target. The brightness slider applies at drawing time, so a
+/// drag shows on the next frame.
 struct NommoLightingProgram: Equatable {
     enum Start: Equatable {
         case black
@@ -468,12 +508,23 @@ struct NommoLightingProgram: Equatable {
     }
 
     let target: NommoLighting
+    /// The color `.solid` settles on, before the brightness.
+    let color: NommoColor
     let start: Start
     /// Seconds on a monotonic clock.
     let began: TimeInterval
 
-    /// The frame for `time`, and whether later frames will differ.
-    func frame(at time: TimeInterval) -> (color: NommoColor, moving: Bool) {
+    init(target: NommoLighting, color: NommoColor = NommoLighting.defaultColor, start: Start,
+         began: TimeInterval) {
+        self.target = target
+        self.color = color
+        self.start = start
+        self.began = began
+    }
+
+    /// The frame for `time` at brightness factor `level`, and whether later
+    /// frames will differ.
+    func frame(at time: TimeInterval, level: Double = 1) -> (color: NommoColor, moving: Bool) {
         let elapsed = max(0, time - began)
         let fade = elapsed / NommoLighting.fadeDuration
         switch (target, start) {
@@ -482,13 +533,27 @@ struct NommoLightingProgram: Equatable {
         case let (.off, .color(color)):
             guard fade < 1 else { return (.black, false) }
             return (color.scaled(NommoLighting.fadeOutFactor(fade)), true)
-        case (.spectrum, .black):
-            let color = NommoColor(hue: 360 * elapsed / NommoLighting.rainbowPeriod)
-            return (fade < 1 ? color.scaled(NommoLighting.fadeInFactor(fade)) : color, true)
-        case let (.spectrum, .color(color)):
-            // The rainbow picks up at the color's own hue, so it just starts flowing.
-            let hue = (color.hue ?? 0) + 360 * elapsed / NommoLighting.rainbowPeriod
-            return (NommoColor(hue: hue), true)
+        case (.spectrum, _):
+            // From a color the rainbow picks up at that color's own hue and
+            // eases to the chosen brightness; from black it fades in.
+            let startHue: Double
+            let scale: Double
+            switch start {
+            case .black:
+                startHue = 0
+                scale = fade < 1 ? level * NommoLighting.fadeInFactor(fade) : level
+            case let .color(color):
+                startHue = color.hue ?? 0
+                scale = fade < 1 ? 1 + (level - 1) * NommoLighting.eased(fade) : level
+            }
+            let hue = startHue + 360 * elapsed / NommoLighting.rainbowPeriod
+            return (NommoColor(hue: hue).scaled(scale), true)
+        case (.solid, .black):
+            let goal = color.scaled(level)
+            return fade < 1 ? (goal.scaled(NommoLighting.fadeInFactor(fade)), true) : (goal, false)
+        case let (.solid, .color(from)):
+            let goal = color.scaled(level)
+            return fade < 1 ? (from.mixed(with: goal, NommoLighting.eased(fade)), true) : (goal, false)
         }
     }
 }

@@ -32,7 +32,18 @@ struct NommoSettings: View {
                 Divider()
                 SettingsRow(symbol: nil, title: strings.lighting, caption: strings.lightingCaption) {
                     NommoLightingPicker()
-                        .frame(width: 200)
+                        .frame(width: 240)
+                }
+                if service.lighting == .solid {
+                    SettingsRow(symbol: nil, title: strings.lightingColor) {
+                        NommoLightingColorRow(size: 20)
+                    }
+                }
+                if service.lighting != .off {
+                    SettingsRow(symbol: nil, title: strings.brightness) {
+                        NommoLightingLevelSlider()
+                            .frame(width: 240)
+                    }
                 }
                 Divider()
                 SettingsRow(symbol: nil, title: strings.autoStandby, caption: strings.autoStandbyCaption) {

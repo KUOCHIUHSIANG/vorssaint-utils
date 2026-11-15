@@ -34,6 +34,10 @@ struct NommoFeatureStrings {
     let lightingOff: String
     let lightingSpectrum: String
     let lightingCaption: String
+    let lightingSolid: String
+    let lightingColor: String
+    let brightness: String
+    let customColor: String
 
     func presetName(_ preset: NommoEQPreset) -> String {
         switch preset {
@@ -48,6 +52,7 @@ struct NommoFeatureStrings {
         switch lighting {
         case .off: return lightingOff
         case .spectrum: return lightingSpectrum
+        case .solid: return lightingSolid
         }
     }
 
@@ -126,7 +131,11 @@ extension NommoFeatureStrings {
         lighting: "Lighting",
         lightingOff: "Off",
         lightingSpectrum: "Spectrum",
-        lightingCaption: "Kept on this Mac and put back after the speakers power on, and 3 seconds after a Razer built-in EQ mode shows its color.")
+        lightingCaption: "Kept on this Mac and put back after the speakers power on, and 3 seconds after a Razer built-in EQ mode shows its color.",
+        lightingSolid: "Solid",
+        lightingColor: "Color",
+        brightness: "Brightness",
+        customColor: "Custom color…")
 
     static let ptBR = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -158,7 +167,11 @@ extension NommoFeatureStrings {
         lighting: "Iluminação",
         lightingOff: "Desligada",
         lightingSpectrum: "Espectro",
-        lightingCaption: "Fica guardada neste Mac e volta depois que as caixas ligam e 3 segundos após um modo de EQ integrado da Razer mostrar sua cor.")
+        lightingCaption: "Fica guardada neste Mac e volta depois que as caixas ligam e 3 segundos após um modo de EQ integrado da Razer mostrar sua cor.",
+        lightingSolid: "Cor única",
+        lightingColor: "Cor",
+        brightness: "Brilho",
+        customColor: "Cor personalizada…")
 
     static let tr = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -190,7 +203,11 @@ extension NommoFeatureStrings {
         lighting: "Aydınlatma",
         lightingOff: "Kapalı",
         lightingSpectrum: "Spektrum",
-        lightingCaption: "Bu Mac’te saklanır; hoparlörler açıldıktan sonra ve Razer yerleşik EQ modu rengini gösterdikten 3 saniye sonra geri yüklenir.")
+        lightingCaption: "Bu Mac’te saklanır; hoparlörler açıldıktan sonra ve Razer yerleşik EQ modu rengini gösterdikten 3 saniye sonra geri yüklenir.",
+        lightingSolid: "Tek renk",
+        lightingColor: "Renk",
+        brightness: "Parlaklık",
+        customColor: "Özel renk…")
 
     static let ru = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -222,7 +239,11 @@ extension NommoFeatureStrings {
         lighting: "Подсветка",
         lightingOff: "Выкл.",
         lightingSpectrum: "Спектр",
-        lightingCaption: "Хранится на этом Mac и восстанавливается после включения колонок и через 3 секунды после того, как встроенный режим EQ Razer покажет свой цвет.")
+        lightingCaption: "Хранится на этом Mac и восстанавливается после включения колонок и через 3 секунды после того, как встроенный режим EQ Razer покажет свой цвет.",
+        lightingSolid: "Один цвет",
+        lightingColor: "Цвет",
+        brightness: "Яркость",
+        customColor: "Свой цвет…")
 
     static let es = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -254,7 +275,11 @@ extension NommoFeatureStrings {
         lighting: "Iluminación",
         lightingOff: "Apagada",
         lightingSpectrum: "Espectro",
-        lightingCaption: "Se guarda en este Mac y se restaura al encender los altavoces y 3 segundos después de que un modo de EQ integrado de Razer muestre su color.")
+        lightingCaption: "Se guarda en este Mac y se restaura al encender los altavoces y 3 segundos después de que un modo de EQ integrado de Razer muestre su color.",
+        lightingSolid: "Color fijo",
+        lightingColor: "Color",
+        brightness: "Brillo",
+        customColor: "Color personalizado…")
 
     static let sk = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -286,7 +311,11 @@ extension NommoFeatureStrings {
         lighting: "Osvetlenie",
         lightingOff: "Vypnuté",
         lightingSpectrum: "Spektrum",
-        lightingCaption: "Uloží sa v tomto Macu a obnoví sa po zapnutí reproduktorov a 3 sekundy po tom, čo vstavaný režim EQ Razer zobrazí svoju farbu.")
+        lightingCaption: "Uloží sa v tomto Macu a obnoví sa po zapnutí reproduktorov a 3 sekundy po tom, čo vstavaný režim EQ Razer zobrazí svoju farbu.",
+        lightingSolid: "Jedna farba",
+        lightingColor: "Farba",
+        brightness: "Jas",
+        customColor: "Vlastná farba…")
 
     static let de = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -318,7 +347,11 @@ extension NommoFeatureStrings {
         lighting: "Beleuchtung",
         lightingOff: "Aus",
         lightingSpectrum: "Spektrum",
-        lightingCaption: "Wird auf diesem Mac gesichert und nach dem Einschalten der Lautsprecher sowie 3 Sekunden, nachdem ein integrierter Razer-EQ-Modus seine Farbe zeigt, wiederhergestellt.")
+        lightingCaption: "Wird auf diesem Mac gesichert und nach dem Einschalten der Lautsprecher sowie 3 Sekunden, nachdem ein integrierter Razer-EQ-Modus seine Farbe zeigt, wiederhergestellt.",
+        lightingSolid: "Einfarbig",
+        lightingColor: "Farbe",
+        brightness: "Helligkeit",
+        customColor: "Eigene Farbe …")
 
     static let fr = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -350,7 +383,11 @@ extension NommoFeatureStrings {
         lighting: "Éclairage",
         lightingOff: "Éteint",
         lightingSpectrum: "Spectre",
-        lightingCaption: "Conservé sur ce Mac et rétabli à l’allumage des enceintes, ainsi que 3 secondes après qu’un mode d’EQ intégré Razer affiche sa couleur.")
+        lightingCaption: "Conservé sur ce Mac et rétabli à l’allumage des enceintes, ainsi que 3 secondes après qu’un mode d’EQ intégré Razer affiche sa couleur.",
+        lightingSolid: "Couleur unie",
+        lightingColor: "Couleur",
+        brightness: "Luminosité",
+        customColor: "Couleur personnalisée…")
 
     static let it = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -382,7 +419,11 @@ extension NommoFeatureStrings {
         lighting: "Illuminazione",
         lightingOff: "Spenta",
         lightingSpectrum: "Spettro",
-        lightingCaption: "Salvata su questo Mac e ripristinata all’accensione degli altoparlanti e 3 secondi dopo che una modalità EQ integrata Razer mostra il suo colore.")
+        lightingCaption: "Salvata su questo Mac e ripristinata all’accensione degli altoparlanti e 3 secondi dopo che una modalità EQ integrata Razer mostra il suo colore.",
+        lightingSolid: "Tinta unita",
+        lightingColor: "Colore",
+        brightness: "Luminosità",
+        customColor: "Colore personalizzato…")
 
     static let ja = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -414,7 +455,11 @@ extension NommoFeatureStrings {
         lighting: "ライティング",
         lightingOff: "オフ",
         lightingSpectrum: "スペクトラム",
-        lightingCaption: "この Mac に保存され、スピーカーの電源投入後と、Razer 内蔵 EQ モードが色を表示してから 3 秒後に元に戻ります。")
+        lightingCaption: "この Mac に保存され、スピーカーの電源投入後と、Razer 内蔵 EQ モードが色を表示してから 3 秒後に元に戻ります。",
+        lightingSolid: "単色",
+        lightingColor: "カラー",
+        brightness: "明るさ",
+        customColor: "カスタムカラー…")
 
     static let ko = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -446,7 +491,11 @@ extension NommoFeatureStrings {
         lighting: "조명",
         lightingOff: "끄기",
         lightingSpectrum: "스펙트럼",
-        lightingCaption: "이 Mac에 저장되며, 스피커 전원을 켠 뒤와 Razer 내장 EQ 모드가 색을 표시한 지 3초 뒤에 복원됩니다.")
+        lightingCaption: "이 Mac에 저장되며, 스피커 전원을 켠 뒤와 Razer 내장 EQ 모드가 색을 표시한 지 3초 뒤에 복원됩니다.",
+        lightingSolid: "단색",
+        lightingColor: "색상",
+        brightness: "밝기",
+        customColor: "사용자 지정 색상…")
 
     static let uk = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -478,7 +527,11 @@ extension NommoFeatureStrings {
         lighting: "Підсвічування",
         lightingOff: "Вимк.",
         lightingSpectrum: "Спектр",
-        lightingCaption: "Зберігається на цьому Mac і відновлюється після ввімкнення колонок та через 3 секунди після того, як вбудований режим EQ Razer покаже свій колір.")
+        lightingCaption: "Зберігається на цьому Mac і відновлюється після ввімкнення колонок та через 3 секунди після того, як вбудований режим EQ Razer покаже свій колір.",
+        lightingSolid: "Один колір",
+        lightingColor: "Колір",
+        brightness: "Яскравість",
+        customColor: "Власний колір…")
 
     static let zhHans = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -510,7 +563,11 @@ extension NommoFeatureStrings {
         lighting: "灯光",
         lightingOff: "关闭",
         lightingSpectrum: "彩虹循环",
-        lightingCaption: "保存在这台 Mac 上；音箱开机后，以及切换 Razer 内置 EQ 显示该模式颜色 3 秒后，都会恢复为这里的设置。")
+        lightingCaption: "保存在这台 Mac 上；音箱开机后，以及切换 Razer 内置 EQ 显示该模式颜色 3 秒后，都会恢复为这里的设置。",
+        lightingSolid: "单色",
+        lightingColor: "颜色",
+        brightness: "亮度",
+        customColor: "自定颜色…")
 
     static let zhTW = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -542,7 +599,11 @@ extension NommoFeatureStrings {
         lighting: "燈光",
         lightingOff: "關閉",
         lightingSpectrum: "彩虹循環",
-        lightingCaption: "存在這台 Mac 上；喇叭開機後，以及切換 Razer 內建 EQ 顯示該模式顏色 3 秒後，都會恢復成這裡的設定。")
+        lightingCaption: "存在這台 Mac 上；喇叭開機後，以及切換 Razer 內建 EQ 顯示該模式顏色 3 秒後，都會恢復成這裡的設定。",
+        lightingSolid: "單色",
+        lightingColor: "顏色",
+        brightness: "亮度",
+        customColor: "自訂顏色…")
 
     static let zhHK = NommoFeatureStrings(
         title: "Razer Nommo V2",
@@ -574,5 +635,9 @@ extension NommoFeatureStrings {
         lighting: "燈光",
         lightingOff: "關閉",
         lightingSpectrum: "彩虹循環",
-        lightingCaption: "儲存在這部 Mac；喇叭開機後，以及切換 Razer 內置 EQ 顯示該模式顏色 3 秒後，都會恢復為這裡的設定。")
+        lightingCaption: "儲存在這部 Mac；喇叭開機後，以及切換 Razer 內置 EQ 顯示該模式顏色 3 秒後，都會恢復為這裡的設定。",
+        lightingSolid: "單色",
+        lightingColor: "顏色",
+        brightness: "亮度",
+        customColor: "自訂顏色…")
 }
