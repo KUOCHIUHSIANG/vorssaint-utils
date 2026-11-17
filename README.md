@@ -18,6 +18,12 @@
 > - **RGB 燈光**：Razer Nommo V2 和 MSI MPG 274URDFW E16M 的背燈一起控制、同步變化，有彩虹、呼吸、流星、閃電、螢幕取色、音樂律動等模式。
 > - **跟著官方更新**：官方發佈新版時，按一下就把客製化的改動接到新版上，重新建置並安裝。
 >
+> <p align="center">
+>   <img src="docs/assets/neptater/demo.gif" width="720" alt="Neptater 示範動畫：RGB 燈光同步、螢幕取色、音樂律動">
+>   <br>
+>   <sub>示意動畫，非實拍：畫面由程式繪製，燈光顏色是 Neptater 的燈光程式實際算出來的。</sub>
+> </p>
+>
 > **致謝**
 > - [OpenRGB](https://gitlab.com/CalcProgrammer1/OpenRGB)：MSI 螢幕背燈的協定參考它的 MSI Monitor 驅動（Andy Herbert、Ken Sanislo，GPL-2.0-or-later）。
 > - [Nommo Control](https://github.com/feroxes/razer-nommo-v2-macos)（MIT）：Nommo V2 在 macOS 上的 HID 通訊。
