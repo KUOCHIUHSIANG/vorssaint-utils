@@ -3,6 +3,18 @@
 > *Neptater is Jater's unofficial personal fork of Vorssaint, not an official Vorssaint release.*
 >
 > **名字由來**：原作的圖示是一顆帶光環的行星，而我從小就喜歡海王星，所以用海王星（Neptune）加上自己的名字 Jater，組成 Neptater，代表這是我的客製化版本。App 圖示是海王星加上它的符號 ♆（三叉戟）；選單列圖示則把海王星的雲帶做成剪影，向原作把光環做成剪影的手法致敬。
+>
+> **Neptater 多了什麼**
+> - **Razer Nommo V2**：重低音、等化器（Razer 內建三組，加上可以直接拖曳編輯的「我的 EQ」）、閒置自動待機。
+> - **RGB 燈光**：Razer Nommo V2 和 MSI MPG 274URDFW E16M 的背燈一起控制、同步變化，有彩虹、呼吸、流星、閃電、螢幕取色、音樂律動等模式。
+> - **跟著官方更新**：官方發佈新版時，按一下就把客製化的改動接到新版上，重新建置並安裝。
+>
+> **致謝**
+> - [OpenRGB](https://gitlab.com/CalcProgrammer1/OpenRGB)：MSI 螢幕背燈的協定參考它的 MSI Monitor 驅動（Andy Herbert、Ken Sanislo，GPL-2.0-or-later）。
+> - [Nommo Control](https://github.com/feroxes/razer-nommo-v2-macos)（MIT）：Nommo V2 在 macOS 上的 HID 通訊。
+> - [OpenRazer PR #2864](https://github.com/openrazer/openrazer/pull/2864)：Nommo V2 的指令資料。
+>
+> **這段經過**：Nommo V2 的左喇叭曾經整個暗掉，關機重開也救不回來。是自行到 Windows 側錄 Razer Synapse 的 USB 封包，才查出原因並在 OpenRGB 修好的：指令不等喇叭回覆就連續送出，會讓左喇叭卡住變暗；寫一次亮度（`0F:04 01 00 FF`）就能恢復，之後每個指令都等回覆再送下一個。這些發現也回報給了 OpenRGB、OpenRazer 和 Nommo Control。
 
 <p align="center">
   <picture>
