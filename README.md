@@ -4,6 +4,15 @@
 >
 > **名字由來**：原作的圖示是一顆帶光環的行星，而我從小就喜歡海王星，所以用海王星（Neptune）加上自己的名字 Jater，組成 Neptater，代表這是我的客製化版本。App 圖示是海王星加上它的符號 ♆（三叉戟）；選單列圖示則把海王星的雲帶做成剪影，向原作把光環做成剪影的手法致敬。
 >
+> <p align="center">
+>   <img src="docs/assets/neptater/icon.png" width="112" alt="Neptater App 圖示">
+>   &nbsp;&nbsp;&nbsp;&nbsp;
+>   <picture>
+>     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/neptater/logo-dark.png">
+>     <img src="docs/assets/neptater/logo.png" width="80" alt="Neptater 選單列圖示">
+>   </picture>
+> </p>
+>
 > **Neptater 多了什麼**
 > - **Razer Nommo V2**：重低音、等化器（Razer 內建三組，加上可以直接拖曳編輯的「我的 EQ」）、閒置自動待機。
 > - **RGB 燈光**：Razer Nommo V2 和 MSI MPG 274URDFW E16M 的背燈一起控制、同步變化，有彩虹、呼吸、流星、閃電、螢幕取色、音樂律動等模式。
